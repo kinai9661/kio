@@ -1,7 +1,8 @@
 /**
- * KIO Gateway v4.0 - OpenAI Compatible API + Built-in UI
+ * KIO Gateway v4.1 - OpenAI Compatible API + Built-in UI
  * Backend: gjosebfngzowbcrwzxnw.supabase.co/functions/v1/openai-compatible
- * Flow: POST /openai-compatible → get task_id → poll /get-task-result
+ * Auth:    Authorization: Bearer <API_KEY>
+ * Flow:    POST /openai-compatible → task_id → poll /get-task-result → image
  */
 
 const HTML_UI = `<!DOCTYPE html>
@@ -199,10 +200,11 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
-    // ── Supabase 設定 ──────────────────────────────────────────────
-    const SUPABASE_URL   = 'https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1';
-    const SUPABASE_ANON  = env.SUPABASE_ANON_KEY  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E';
-    const SUPABASE_TOKEN = env.SUPABASE_AUTH_TOKEN || 'eyJhbGciOiJFUzI1NiIsImtpZCI6ImI0OWQ3OTkyLTI0NDItNDE3ZS05MzAxLTIzNzk1ZjE3NTJjNyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dqb3NlYmZuZ3pvd2Jjcnd6eG53LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYjI3NjI1Yi01ZjRjLTRjZjktYWE4MS01OTJkZmYyOTM3N2YiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc0MzY0MTc2LCJpYXQiOjE3NzQzNjA1NzYsImVtYWlsIjoia2luZXM5NjYxNzZAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJzc286ZDkwZGM1ZTItMTdjNS00NGY1LWJjMjUtMWFmN2ZjZmJmZTQ1IiwicHJvdmlkZXJzIjpbInNzbzpkOTBkYzVlMi0xN2M1LTQ0ZjUtYmMyNS0xYWY3ZmNmYmZlNDUiXX0sInVzZXJfbWV0YWRhdGEiOnsiY3VzdG9tX2NsYWltcyI6e30sImVtYWlsIjoia2luZXM5NjYxNzZAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImlzcyI6Imh0dHBzOi8vbWVkby5kZXYvZ29vZ2xlX21ldGFkYXRhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJraW5lczk2NjE3NkBnbWFpbC5jb20ifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJzc28vc2FtbCIsInRpbWVzdGFtcCI6MTc3MjkwOTUyNSwicHJvdmlkZXIiOiJkOTBkYzVlMi0xN2M1LTQ0ZjUtYmMyNS0xYWY3ZmNmYmZlNDUifV0sInNlc3Npb25faWQiOiIzNTAxZjQ3NS0wMzEyLTQ3MTctYTU2YS1kN2ZlZWMzZDBkNTAiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.bV3Q6DZAtxT_ETsiM0gLFPXiKTqKxPoH1czwlANF6EyQ7C98E_UwwGJZ0oT7Sai0OT_m4kpW8bypPkfquWuI5A';
+    // ── 認證設定 ───────────────────────────────────────────────
+    const SUPABASE_URL = 'https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1';
+    // 優先使用環境變數，fallback 到硬編碼
+    const API_KEY = env.MEDO_API_KEY || 'nb_SBa89oD7xBbHSrwJKny3acDF6kRFuPBNgF2BEEDTdnRGMyBe';
+    const SUPABASE_ANON = env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E';
 
     const json = (data, status = 200) =>
       new Response(JSON.stringify(data), {
@@ -210,27 +212,34 @@ export default {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
 
-    const supaHeaders = () => ({
+    // ── openai-compatible 請求頭 (Bearer API Key) ────────────────
+    const apiHeaders = () => ({
       'Content-Type': 'application/json',
+      'Authorization': `Bearer ${API_KEY}`,
       'apikey': SUPABASE_ANON,
-      'Authorization': `Bearer ${SUPABASE_TOKEN}`,
     });
 
-    // ── Step 1: 呼叫 openai-compatible 送出任務 ────────────────────
-    async function submitToOpenAICompat(body) {
+    // get-task-result 請求頭 (同樣用 Bearer API Key)
+    const pollHeaders = () => ({
+      'Authorization': `Bearer ${API_KEY}`,
+      'apikey': SUPABASE_ANON,
+    });
+
+    // ── Step 1: 送出圖像任務 ──────────────────────────────────
+    async function submitTask(body) {
       const res = await fetch(`${SUPABASE_URL}/openai-compatible`, {
         method: 'POST',
-        headers: supaHeaders(),
+        headers: apiHeaders(),
         body: JSON.stringify(body),
       });
       if (!res.ok) {
         const err = await res.text();
-        throw new Error(`openai-compatible failed: ${res.status} ${err}`);
+        throw new Error(`openai-compatible ${res.status}: ${err}`);
       }
       return res.json();
     }
 
-    // ── Step 2: 輪詢 get-task-result 直到完成 ─────────────────────
+    // ── Step 2: 輪詢結果 ──────────────────────────────────────
     async function pollUntilDone(taskId, maxWait = 120000, interval = 3000) {
       const deadline = Date.now() + maxWait;
       let attempt = 0;
@@ -238,139 +247,106 @@ export default {
         attempt++;
         await new Promise(r => setTimeout(r, interval));
         const res = await fetch(`${SUPABASE_URL}/get-task-result?task_id=${taskId}`, {
-          headers: supaHeaders(),
+          headers: pollHeaders(),
         });
         if (!res.ok) continue;
         const data = await res.json();
         const status = data.status || data.state || data.task_status;
-        console.log(`Poll #${attempt} task_id=${taskId} status=${status}`);
-
+        console.log(`[KIO] Poll #${attempt} | task=${taskId} | status=${status}`);
         if (status === 'completed' || status === 'done' || status === 'success') return data;
-        if (status === 'failed' || status === 'error') {
-          throw new Error(data.error || data.message || 'Task failed');
-        }
-        // 仍是 pending/processing，繼續等
+        if (status === 'failed' || status === 'error') throw new Error(data.error || data.message || 'Task failed');
       }
-      throw new Error(`Task ${taskId} timeout after ${maxWait/1000}s`);
+      throw new Error(`Task ${taskId} timed out after ${maxWait / 1000}s`);
     }
 
-    // ── 從任意格式結果中取出圖像 URL ──────────────────────────────
-    function extractImage(result) {
-      return result.image_url
-        || result.url
-        || result.output_url
-        || result.output?.url
-        || result.result?.url
-        || result.result?.image_url
-        || (Array.isArray(result.images) ? result.images[0] : null)
-        || (Array.isArray(result.data) ? result.data[0]?.url || result.data[0]?.image_url : null)
+    // ── 提取圖像 ─────────────────────────────────────────────
+    function extractImage(r) {
+      return r.image_url || r.url || r.output_url
+        || r.output?.url || r.result?.url || r.result?.image_url
+        || (Array.isArray(r.images) ? r.images[0] : null)
+        || (Array.isArray(r.data) ? (r.data[0]?.url || r.data[0]?.image_url) : null)
         || null;
     }
-
-    function extractB64(result) {
-      return result.b64_json || result.base64 || result.result?.b64_json || null;
+    function extractB64(r) {
+      return r.b64_json || r.base64 || r.result?.b64_json || null;
     }
 
     try {
 
-      // ── GET / → UI ──────────────────────────────────────────────
+      // GET / → UI
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
-        return new Response(HTML_UI, {
-          headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' },
-        });
+        return new Response(HTML_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
       }
 
-      // ── GET /health ─────────────────────────────────────────────
+      // GET /health
       if (request.method === 'GET' && url.pathname === '/health') {
-        return json({ status: 'ok', service: 'kio-gateway', version: '4.0.0', backend: 'openai-compatible', ui: '/' });
+        return json({ status: 'ok', version: '4.1.0', backend: 'openai-compatible', auth: 'api-key', ui: '/' });
       }
 
-      // ── GET /v1/models ──────────────────────────────────────────
+      // GET /v1/models
       if (request.method === 'GET' && url.pathname === '/v1/models') {
         return json({ object: 'list', data: [
-          { id: 'gemini-3.1-pro-preview', object: 'model', created: 1700000000, owned_by: 'medo' },
-          { id: 'medo-image',             object: 'model', created: 1700000000, owned_by: 'medo' },
-          { id: 'dall-e-3',              object: 'model', created: 1700000000, owned_by: 'openai' },
+          { id: 'gemini-3.1-pro-preview', object: 'model', owned_by: 'medo' },
+          { id: 'medo-image',             object: 'model', owned_by: 'medo' },
+          { id: 'dall-e-3',              object: 'model', owned_by: 'openai' },
         ]});
       }
 
-      // ── POST /v1/images/generations ─────────────────────────────
-      //    核心邏輯：送出 → 取 task_id → 輪詢 → 回傳圖像
+      // POST /v1/images/generations
       if (request.method === 'POST' &&
          (url.pathname === '/v1/images/generations' || url.pathname === '/v1/images/generate')) {
 
         const body = await request.json();
-        const {
-          prompt,
-          model           = 'gemini-3.1-pro-preview',
-          n               = 1,
-          size            = '1024x1024',
-          quality         = 'standard',
-          style           = 'vivid',
-          response_format = 'url',
-          ...extra
-        } = body;
+        const { prompt, model = 'gemini-3.1-pro-preview', n = 1, size = '1024x1024',
+                quality = 'standard', style = 'vivid', response_format = 'url', ...extra } = body;
 
-        if (!prompt) {
-          return json({ error: { message: 'prompt is required', type: 'invalid_request_error' } }, 400);
-        }
+        if (!prompt) return json({ error: { message: 'prompt is required' } }, 400);
 
-        // 送出到 openai-compatible
-        const submitResp = await submitToOpenAICompat({ prompt, model, n, size, quality, style, response_format, ...extra });
+        // 送出任務
+        const submitResp = await submitTask({ prompt, model, n, size, quality, style, response_format, ...extra });
+        console.log('[KIO] submit response:', JSON.stringify(submitResp).slice(0, 300));
 
-        // 如果直接回傳了圖像（同步模式）
+        // 同步回傳
         const directImg = extractImage(submitResp);
         const directB64 = extractB64(submitResp);
         if (directImg || directB64) {
-          return json({
-            created: Math.floor(Date.now() / 1000),
-            data: [{
-              ...(directImg ? { url: directImg } : {}),
-              ...(directB64 ? { b64_json: directB64 } : {}),
-              revised_prompt: submitResp.revised_prompt || prompt,
-            }],
-          });
+          return json({ created: Math.floor(Date.now()/1000), data: [{
+            ...(directImg ? { url: directImg } : {}),
+            ...(directB64 ? { b64_json: directB64 } : {}),
+            revised_prompt: submitResp.revised_prompt || prompt,
+          }]});
         }
 
-        // 非同步模式：取 task_id 然後輪詢
+        // 取 task_id
         const taskId =
-          submitResp.data?.[0]?.task_id
-          || submitResp.task_id
-          || submitResp.id
-          || submitResp.job_id
-          || submitResp.request_id;
+          submitResp.data?.[0]?.task_id ||
+          submitResp.task_id || submitResp.id ||
+          submitResp.job_id || submitResp.request_id;
 
         if (!taskId) {
-          // 無法識別，原樣回傳供 debug
           return json({ created: Math.floor(Date.now()/1000), data: [{ _raw: submitResp }], warning: 'Unknown upstream format' });
         }
 
-        // 輪詢直到完成
+        console.log(`[KIO] Got task_id=${taskId}, starting poll...`);
+
+        // 輪詢
         const result = await pollUntilDone(taskId);
         const imgUrl = extractImage(result);
         const b64    = extractB64(result);
 
-        return json({
-          created: Math.floor(Date.now() / 1000),
-          data: [{
-            ...(imgUrl ? { url: imgUrl } : {}),
-            ...(b64   ? { b64_json: b64 } : {}),
-            revised_prompt: result.revised_prompt || result.enhanced_prompt || prompt,
-            task_id: taskId,
-          }],
-        });
+        return json({ created: Math.floor(Date.now()/1000), data: [{
+          ...(imgUrl ? { url: imgUrl } : {}),
+          ...(b64   ? { b64_json: b64 } : {}),
+          revised_prompt: result.revised_prompt || result.enhanced_prompt || prompt,
+          task_id: taskId,
+        }]});
       }
 
-      // ── 404 ─────────────────────────────────────────────────────
-      return json({
-        error: { message: `Not found: ${request.method} ${url.pathname}` },
-        ui: '/',
-        routes: ['GET /', 'GET /health', 'GET /v1/models', 'POST /v1/images/generations'],
-      }, 404);
+      return json({ error: { message: `Not found: ${request.method} ${url.pathname}` }, ui: '/' }, 404);
 
     } catch (error) {
-      console.error('Worker Error:', error.stack || error.message);
-      return json({ error: { message: error.message || 'Internal server error', type: 'api_error' } }, 500);
+      console.error('[KIO] Error:', error.stack || error.message);
+      return json({ error: { message: error.message || 'Internal server error' } }, 500);
     }
   },
 };
