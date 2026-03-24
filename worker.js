@@ -2,8 +2,8 @@
  * KIO Gateway v4.2 - OpenAI Compatible API + Built-in UI
  * Backend: gjosebfngzowbcrwzxnw.supabase.co/functions/v1/openai-compatible
  * Auth:    Authorization: Bearer <API_KEY>
- * Flow:    POST /openai-compatible → task_id → poll /get-task-result → image
- * New:     1K/2K/4K sizes + API debug panel
+ * Flow:    POST /openai-compatible -> task_id -> poll /get-task-result -> image
+ * v4.2:   1K/2K/4K sizes + API debug panel
  */
 
 const HTML_UI = `<!DOCTYPE html>
@@ -30,14 +30,12 @@ input,select,textarea{background:var(--surface2);border:1px solid var(--border);
 input:focus,select:focus,textarea:focus{border-color:var(--accent);}
 select option{background:var(--surface2);}
 textarea#prompt{min-height:100px;resize:vertical;line-height:1.6;}
-/* Size grid */
 .size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;}
 .size-btn{background:var(--surface2);border:1px solid var(--border);border-radius:8px;color:var(--text2);font-size:0.72rem;font-weight:600;padding:7px 4px;cursor:pointer;text-align:center;transition:all .15s;line-height:1.3;}
 .size-btn:hover{border-color:var(--accent);color:var(--text);}
 .size-btn.active{border-color:var(--accent);background:rgba(124,111,255,.15);color:var(--accent);}
 .size-btn .ratio{font-size:0.65rem;color:var(--text2);display:block;margin-top:2px;}
 .size-btn.active .ratio{color:var(--accent);opacity:.7;}
-/* Generate btn */
 .gen-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius);color:#fff;font-size:0.92rem;font-weight:700;padding:12px;cursor:pointer;width:100%;transition:opacity .2s,transform .15s;display:flex;align-items:center;justify-content:center;gap:8px;}
 .gen-btn:hover{opacity:.9;transform:translateY(-1px);}
 .gen-btn:disabled{opacity:.4;cursor:not-allowed;transform:none;}
@@ -45,17 +43,14 @@ textarea#prompt{min-height:100px;resize:vertical;line-height:1.6;}
 .gen-btn.loading .spin{display:block;}
 .gen-btn.loading .btn-txt{display:none;}
 @keyframes spin{to{transform:rotate(360deg);}}
-/* Progress */
 .prog-wrap{display:none;}
 .prog-wrap.show{display:block;}
 .prog-lbl{font-size:0.72rem;color:var(--text2);margin-bottom:5px;}
 .prog-bar{height:3px;background:var(--border);border-radius:99px;overflow:hidden;}
 .prog-fill{height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));border-radius:99px;transition:width .4s ease;}
-/* Status */
 .status{display:none;padding:9px 12px;border-radius:8px;font-size:0.8rem;margin-top:2px;}
 .status.error{display:flex;gap:7px;background:rgba(239,68,68,.12);color:var(--error);border:1px solid rgba(239,68,68,.2);}
 .status.success{display:flex;gap:7px;background:rgba(34,197,94,.1);color:var(--success);border:1px solid rgba(34,197,94,.2);}
-/* API debug panel */
 .api-panel{background:var(--surface2);border:1px solid var(--border);border-radius:10px;overflow:hidden;}
 .api-panel-header{display:flex;align-items:center;justify-content:space-between;padding:9px 13px;cursor:pointer;user-select:none;border-bottom:1px solid transparent;}
 .api-panel-header:hover{background:rgba(255,255,255,.03);}
@@ -86,7 +81,6 @@ pre.api-code .num{color:#f59e0b;}
 pre.api-code .bool{color:#22c55e;}
 .copy-btn{font-size:0.68rem;padding:3px 9px;border-radius:5px;background:var(--surface);border:1px solid var(--border);color:var(--text2);cursor:pointer;float:right;margin-bottom:5px;}
 .copy-btn:hover{color:var(--text);}
-/* Main area */
 .main{padding:24px;display:flex;flex-direction:column;gap:24px;overflow-y:auto;}
 .empty-state{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;color:var(--text2);text-align:center;padding:60px 20px;}
 .empty-icon{font-size:3.5rem;opacity:.25;}
@@ -121,21 +115,17 @@ pre.api-code .bool{color:#22c55e;}
     <div class="logo-icon">&#127912;</div>
     <div><h1>KIO Gateway</h1><small>v4.2 &mdash; medo image</small></div>
   </div>
-
-  <!-- Prompt -->
   <div>
     <div class="sec-label">&#128221; Prompt</div>
     <div class="field">
-      <label style="font-size:.73rem">描述 <span style="color:var(--text2);font-weight:400">(Ctrl+Enter 送出)</span></label>
-      <textarea id="prompt" placeholder="一隻可愛的小貓坐在窗邊，柔和陽光，吉卜力風格"></textarea>
+      <label style="font-size:.73rem">&#25묘&#36848; <span style="color:var(--text2);font-weight:400">(Ctrl+Enter &#36011;&#20986;)</span></label>
+      <textarea id="prompt" placeholder="&#19968;&#38500;&#21487;&#24859;&#30340;&#23567;&#36931;&#22352;&#22312;&#31383;&#36794;&#65292;&#26580;&#21644;&#38525;&#20809;&#65292;&#21513;&#21368;&#21147;&#39080;&#26684;"></textarea>
     </div>
   </div>
-
-  <!-- Model -->
   <div>
-    <div class="sec-label">&#9881;&#65039; 設定</div>
+    <div class="sec-label">&#9881;&#65039; &#35373;&#23450;</div>
     <div class="field">
-      <label>模型</label>
+      <label>&#27169;&#22411;</label>
       <select id="model">
         <option value="gemini-3.1-pro-preview" selected>gemini-3.1-pro-preview</option>
         <option value="medo-image">medo-image</option>
@@ -143,79 +133,67 @@ pre.api-code .bool{color:#22c55e;}
       </select>
     </div>
   </div>
-
-  <!-- Size -->
   <div>
-    <div class="sec-label">&#128004; 尺寸</div>
+    <div class="sec-label">&#128004; &#23610;&#23544;</div>
     <div class="size-grid" id="sizeGrid">
-      <!-- 1K -->
-      <button class="size-btn" data-size="1024x1024" data-label="1K 1:1">1K<span class="ratio">1024&times;1024</span></button>
-      <button class="size-btn" data-size="1024x1792" data-label="1K 9:16">1K 縱<span class="ratio">1024&times;1792</span></button>
-      <button class="size-btn" data-size="1792x1024" data-label="1K 16:9">1K 橫<span class="ratio">1792&times;1024</span></button>
-      <!-- 2K -->
-      <button class="size-btn" data-size="2048x2048" data-label="2K 1:1">2K<span class="ratio">2048&times;2048</span></button>
-      <button class="size-btn" data-size="2048x3584" data-label="2K 9:16">2K 縱<span class="ratio">2048&times;3584</span></button>
-      <button class="size-btn" data-size="3584x2048" data-label="2K 16:9">2K 橫<span class="ratio">3584&times;2048</span></button>
-      <!-- 4K -->
-      <button class="size-btn" data-size="4096x4096" data-label="4K 1:1">4K<span class="ratio">4096&times;4096</span></button>
-      <button class="size-btn" data-size="4096x7168" data-label="4K 9:16">4K 縱<span class="ratio">4096&times;7168</span></button>
-      <button class="size-btn" data-size="7168x4096" data-label="4K 16:9">4K 橫<span class="ratio">7168&times;4096</span></button>
+      <button class="size-btn active" data-size="1024x1024">1K<span class="ratio">1024&#215;1024</span></button>
+      <button class="size-btn" data-size="1024x1792">1K &#32244;<span class="ratio">1024&#215;1792</span></button>
+      <button class="size-btn" data-size="1792x1024">1K &#6a6b;<span class="ratio">1792&#215;1024</span></button>
+      <button class="size-btn" data-size="2048x2048">2K<span class="ratio">2048&#215;2048</span></button>
+      <button class="size-btn" data-size="2048x3584">2K &#32244;<span class="ratio">2048&#215;3584</span></button>
+      <button class="size-btn" data-size="3584x2048">2K &#6a6b;<span class="ratio">3584&#215;2048</span></button>
+      <button class="size-btn" data-size="4096x4096">4K<span class="ratio">4096&#215;4096</span></button>
+      <button class="size-btn" data-size="4096x7168">4K &#32244;<span class="ratio">4096&#215;7168</span></button>
+      <button class="size-btn" data-size="7168x4096">4K &#6a6b;<span class="ratio">7168&#215;4096</span></button>
     </div>
   </div>
-
-  <!-- Progress -->
   <div class="prog-wrap" id="progWrap">
-    <div class="prog-lbl" id="progLbl">正在生成...</div>
+    <div class="prog-lbl" id="progLbl">&#27491;&#22312;&#29983;&#25104;...</div>
     <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
   </div>
-
-  <!-- Generate -->
   <button class="gen-btn" id="genBtn">
-    <span class="btn-txt">&#10024; 生成圖像</span>
+    <span class="btn-txt">&#10024; &#29983;&#25104;&#22294;&#20687;</span>
     <div class="spin"></div>
   </button>
   <div class="status" id="statusMsg"></div>
-
-  <!-- API Debug Panel -->
   <div class="api-panel" id="apiPanel">
     <div class="api-panel-header" id="apiToggle">
-      <div class="api-panel-title"><div class="dot" id="apiDot"></div>API 資訊</div>
+      <div class="api-panel-title"><div class="dot" id="apiDot"></div>API &#36039;&#35338;</div>
       <span class="api-chevron">&#9660;</span>
     </div>
     <div class="api-tabs" id="apiTabs" style="display:none">
-      <div class="api-tab active" data-tab="req">&#128228; 請求</div>
-      <div class="api-tab" data-tab="res">&#128229; 響應</div>
-      <div class="api-tab" data-tab="poll">&#128260; 輪詢</div>
+      <div class="api-tab active" data-tab="req">&#128228; &#35531;&#27714;</div>
+      <div class="api-tab" data-tab="res">&#128229; &#97;&#97;&#97;&#24212;</div>
+      <div class="api-tab" data-tab="poll">&#128260; &#36736;&#35810;</div>
     </div>
     <div class="api-body" id="apiBody">
       <div id="tabReq">
         <div class="api-meta" id="reqMeta"></div>
-        <button class="copy-btn" onclick="copyCode('reqCode')">複製</button>
-        <pre class="api-code" id="reqCode">// 尚未發送請求</pre>
+        <button class="copy-btn" onclick="copyCode('reqCode')">&#35531;&#21069;&#8203;&#35531;&#21069;</button>
+        <pre class="api-code" id="reqCode">// &#23544;&#26410;&#30332;&#36865;&#35531;&#27714;</pre>
       </div>
       <div id="tabRes" style="display:none">
         <div class="api-meta" id="resMeta"></div>
-        <button class="copy-btn" onclick="copyCode('resCode')">複製</button>
-        <pre class="api-code" id="resCode">// 尚未收到響應</pre>
+        <button class="copy-btn" onclick="copyCode('resCode')">&#35531;&#21069;&#8203;&#35531;&#21069;</button>
+        <pre class="api-code" id="resCode">// &#23544;&#26410;&#25910;&#21040;&#97;&#97;&#24212;</pre>
       </div>
       <div id="tabPoll" style="display:none">
         <div class="api-meta" id="pollMeta"></div>
-        <button class="copy-btn" onclick="copyCode('pollCode')">複製</button>
-        <pre class="api-code" id="pollCode">// 尚未輪詢</pre>
+        <button class="copy-btn" onclick="copyCode('pollCode')">&#35531;&#21069;&#8203;&#35531;&#21069;</button>
+        <pre class="api-code" id="pollCode">// &#23544;&#26410;&#36736;&#35810;</pre>
       </div>
     </div>
   </div>
-
 </aside>
 <main class="main" id="main">
   <div class="empty-state" id="emptyState">
     <div class="empty-icon">&#128444;&#65039;</div>
-    <h2 style="color:var(--text2);font-weight:500">尚未生成任何圖像</h2>
-    <p style="font-size:.8rem;max-width:240px;line-height:1.6">在左側輸入描述並選擇尺寸，點擊「生成圖像」</p>
+    <h2 style="color:var(--text2);font-weight:500">&#23544;&#26410;&#29983;&#25104;&#20219;&#20309;&#22294;&#20687;</h2>
+    <p style="font-size:.8rem;max-width:240px;line-height:1.6">&#22312;&#24038;&#20491;&#36664;&#20837;&#25551;&#36848;&#20006;&#36982;&#25321;&#23610;&#23544;&#65292;&#40670;&#64277;&#12300;&#29983;&#25104;&#22294;&#20687;&#12301;</p>
   </div>
   <div id="latestResult" style="display:none"></div>
   <div class="hist-sec" id="histSec" style="display:none">
-    <h2>&#128344; 歷史紀錄</h2>
+    <h2>&#128344; &#27511;&#21490;&#32000;&#37636;</h2>
     <div class="hist-grid" id="histGrid"></div>
   </div>
 </main>
@@ -225,41 +203,34 @@ pre.api-code .bool{color:#22c55e;}
   <img id="lbImg" src="" alt="">
 </div>
 <script>
-let hist=JSON.parse(localStorage.getItem('kio_h')||'[]');
-let progTimer=null, selectedSize='1024x1024';
-const $=id=>document.getElementById(id);
-const promptEl=$('prompt'),modelEl=$('model');
-const genBtn=$('genBtn'),statusMsg=$('statusMsg');
-const progWrap=$('progWrap'),progFill=$('progFill'),progLbl=$('progLbl');
-const emptyState=$('emptyState'),latestResult=$('latestResult');
-const histSec=$('histSec'),histGrid=$('histGrid');
-const lightbox=$('lightbox'),lbImg=$('lbImg');
-const apiPanel=$('apiPanel'),apiToggle=$('apiToggle'),apiDot=$('apiDot');
-const apiTabs=$('apiTabs'),apiBody=$('apiBody');
-
-// ─ Size buttons
-document.querySelectorAll('.size-btn').forEach(btn=>{
-  if(btn.dataset.size==='1024x1024')btn.classList.add('active');
-  btn.addEventListener('click',()=>{
-    document.querySelectorAll('.size-btn').forEach(b=>b.classList.remove('active'));
+var hist=JSON.parse(localStorage.getItem('kio_h')||'[]');
+var progTimer=null,selectedSize='1024x1024';
+function $(id){return document.getElementById(id);}
+var promptEl=$('prompt'),modelEl=$('model');
+var genBtn=$('genBtn'),statusMsg=$('statusMsg');
+var progWrap=$('progWrap'),progFill=$('progFill'),progLbl=$('progLbl');
+var emptyState=$('emptyState'),latestResult=$('latestResult');
+var histSec=$('histSec'),histGrid=$('histGrid');
+var lightbox=$('lightbox'),lbImg=$('lbImg');
+var apiPanel=$('apiPanel'),apiToggle=$('apiToggle'),apiDot=$('apiDot');
+var apiTabs=$('apiTabs');
+document.querySelectorAll('.size-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('.size-btn').forEach(function(b){b.classList.remove('active');});
     btn.classList.add('active');
     selectedSize=btn.dataset.size;
   });
 });
-
-// ─ API Panel toggle
-let panelOpen=false;
-apiToggle.addEventListener('click',()=>{
+var panelOpen=false;
+apiToggle.addEventListener('click',function(){
   panelOpen=!panelOpen;
   apiPanel.classList.toggle('open',panelOpen);
   apiTabs.style.display=panelOpen?'flex':'none';
 });
-
-// ─ API Tabs
-let activeTab='req';
-document.querySelectorAll('.api-tab').forEach(tab=>{
-  tab.addEventListener('click',()=>{
-    document.querySelectorAll('.api-tab').forEach(t=>t.classList.remove('active'));
+var activeTab='req';
+document.querySelectorAll('.api-tab').forEach(function(tab){
+  tab.addEventListener('click',function(){
+    document.querySelectorAll('.api-tab').forEach(function(t){t.classList.remove('active');});
     tab.classList.add('active');
     activeTab=tab.dataset.tab;
     $('tabReq').style.display=activeTab==='req'?'block':'none';
@@ -267,97 +238,154 @@ document.querySelectorAll('.api-tab').forEach(tab=>{
     $('tabPoll').style.display=activeTab==='poll'?'block':'none';
   });
 });
-
 function syntaxHL(obj){
-  const s=JSON.stringify(obj,null,2);
+  var s=JSON.stringify(obj,null,2);
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
     .replace(/("[^"]+")\s*:/g,'<span class="key">$1</span>:')
     .replace(/:\s*("[^"]*")/g,': <span class="str">$1</span>')
     .replace(/:\s*(-?\d+\.?\d*)/g,': <span class="num">$1</span>')
     .replace(/:\s*(true|false|null)/g,': <span class="bool">$1</span>');
 }
-
 function setApiReq(url,method,body,ms){
-  $('reqCode').innerHTML=syntaxHL({endpoint:url,method,body});
-  $('reqMeta').innerHTML=`<span><span class="badge pend">${method}</span></span><span>\u23F1 ${ms||'-'}ms</span>`;
+  $('reqCode').innerHTML=syntaxHL({endpoint:url,method:method,body:body});
+  var timer=ms||'-';
+  $('reqMeta').innerHTML='<span><span class="badge pend">'+method+'</span></span><span>&#8987; '+timer+'ms</span>';
   apiDot.className='dot pending';
 }
 function setApiRes(status,data,ms){
   $('resCode').innerHTML=syntaxHL(data);
-  const ok=status>=200&&status<300;
-  $('resMeta').innerHTML=`<span><span class="badge ${ok?'ok':'err'}">${status}</span></span><span>\u23F1 ${ms}ms</span>`;
+  var ok=status>=200&&status<300;
+  var cls=ok?'ok':'err';
+  $('resMeta').innerHTML='<span><span class="badge '+cls+'">'+status+'</span></span><span>&#8987; '+ms+'ms</span>';
   apiDot.className='dot '+(ok?'ok':'err');
 }
 function setApiPoll(attempts,taskId,finalStatus,data){
-  $('pollCode').innerHTML=syntaxHL({task_id:taskId,attempts,final_status:finalStatus,result:data});
-  $('pollMeta').innerHTML=`<span>&#128260; ${attempts} \u6B21\u8F2A\u8A62</span><span><span class="badge ${finalStatus==='completed'||finalStatus==='success'?'ok':'err'}">${finalStatus}</span></span>`;
+  $('pollCode').innerHTML=syntaxHL({task_id:taskId,attempts:attempts,final_status:finalStatus,result:data});
+  var ok=finalStatus==='completed'||finalStatus==='success';
+  $('pollMeta').innerHTML='<span>&#128260; '+attempts+' &#27425;&#36736;&#35810;</span><span><span class="badge '+(ok?'ok':'err')+'">'+finalStatus+'</span></span>';
 }
 function copyCode(id){
-  navigator.clipboard.writeText($(''+id).textContent);
+  navigator.clipboard.writeText($(id).textContent);
 }
-
-function showStatus(type,msg){statusMsg.className='status '+type;statusMsg.textContent=(type==='error'?'\u274C ':'\u2705 ')+msg;}
-function startProg(lbl){progWrap.classList.add('show');progLbl.textContent=lbl||'...';let p=0;progFill.style.width='0%';progTimer=setInterval(()=>{p=Math.min(p+(p<55?2.5:p<80?1:0.3),94);progFill.style.width=p+'%';},700);}
-function endProg(){clearInterval(progTimer);progFill.style.width='100%';setTimeout(()=>progWrap.classList.remove('show'),700);}
-function setLoad(on){genBtn.disabled=on;genBtn.classList.toggle('loading',on);if(on)startProg('正在送出請求...');else endProg();}
-
+function showStatus(type,msg){
+  statusMsg.className='status '+type;
+  statusMsg.textContent=(type==='error'?'\u274C ':'\u2705 ')+msg;
+}
+function startProg(lbl){
+  progWrap.classList.add('show');
+  progLbl.textContent=lbl||'...';
+  var p=0;
+  progFill.style.width='0%';
+  progTimer=setInterval(function(){
+    p=Math.min(p+(p<55?2.5:p<80?1:0.3),94);
+    progFill.style.width=p+'%';
+  },700);
+}
+function endProg(){
+  clearInterval(progTimer);
+  progFill.style.width='100%';
+  setTimeout(function(){progWrap.classList.remove('show');},700);
+}
+function setLoad(on){
+  genBtn.disabled=on;
+  genBtn.classList.toggle('loading',on);
+  if(on)startProg('\u6B63\u5728\u9001\u51FA\u8ACB\u6C42...');
+  else endProg();
+}
 function buildCard(src,prompt,revised){
-  const card=document.createElement('div');card.className='result-card';
-  const img=document.createElement('img');img.src=src;img.className='result-img';img.alt='';img.onclick=()=>openLb(src);card.appendChild(img);
-  const meta=document.createElement('div');meta.className='result-meta';
-  const p=document.createElement('p');p.className='result-prompt-txt';p.textContent=(revised?'\uD83E\uDD16 '+revised:'\uD83D\uDCDD '+prompt);meta.appendChild(p);
-  const acts=document.createElement('div');acts.className='result-actions';
-  const dl=document.createElement('a');dl.className='act-btn primary';dl.href=src;dl.download='kio-'+Date.now()+'.png';dl.innerHTML='\u2B07\uFE0F \u4E0B\u8F09';acts.appendChild(dl);
-  const cp=document.createElement('button');cp.className='act-btn secondary';cp.innerHTML='\uD83D\uDCCB \u8907\u88FD URL';cp.onclick=()=>{navigator.clipboard.writeText(src);cp.textContent='\u2705 \u5DF2\u8907\u88FD';setTimeout(()=>cp.innerHTML='\uD83D\uDCCB \u8907\u88FD URL',2000);};acts.appendChild(cp);
-  const lb=document.createElement('button');lb.className='act-btn secondary';lb.innerHTML='\uD83D\uDD0D \u5168\u87A2\u5E55';lb.onclick=()=>openLb(src);acts.appendChild(lb);
+  var card=document.createElement('div');card.className='result-card';
+  var img=document.createElement('img');img.src=src;img.className='result-img';img.alt='';
+  img.onclick=function(){openLb(src);};
+  card.appendChild(img);
+  var meta=document.createElement('div');meta.className='result-meta';
+  var p=document.createElement('p');p.className='result-prompt-txt';
+  p.textContent=(revised?'\uD83E\uDD16 '+revised:'\uD83D\uDCDD '+prompt);
+  meta.appendChild(p);
+  var acts=document.createElement('div');acts.className='result-actions';
+  var dl=document.createElement('a');dl.className='act-btn primary';
+  dl.href=src;dl.download='kio-'+Date.now()+'.png';dl.innerHTML='\u2B07\uFE0F \u4E0B\u8F09';
+  acts.appendChild(dl);
+  var cp=document.createElement('button');cp.className='act-btn secondary';
+  cp.innerHTML='\uD83D\uDCCB \u8907\u88FD URL';
+  cp.onclick=function(){
+    navigator.clipboard.writeText(src);
+    cp.textContent='\u2705 \u5DF2\u8907\u88FD';
+    setTimeout(function(){cp.innerHTML='\uD83D\uDCCB \u8907\u88FD URL';},2000);
+  };
+  acts.appendChild(cp);
+  var lb=document.createElement('button');lb.className='act-btn secondary';
+  lb.innerHTML='\uD83D\uDD0D \u5168\u87A2\u5E55';
+  lb.onclick=function(){openLb(src);};
+  acts.appendChild(lb);
   meta.appendChild(acts);card.appendChild(meta);return card;
 }
-function saveHist(src,prompt){hist.unshift({src,prompt,ts:Date.now()});if(hist.length>20)hist=hist.slice(0,20);localStorage.setItem('kio_h',JSON.stringify(hist));renderHist();}
-function renderHist(){if(hist.length<=1)return;histSec.style.display='block';histGrid.innerHTML='';hist.slice(1).forEach(item=>{const t=document.createElement('div');t.className='hist-thumb';const i=document.createElement('img');i.src=item.src;const ov=document.createElement('div');ov.className='hist-ov';ov.textContent='\uD83D\uDD0D';t.appendChild(i);t.appendChild(ov);t.onclick=()=>openLb(item.src);histGrid.appendChild(t);});}
+function saveHist(src,prompt){
+  hist.unshift({src:src,prompt:prompt,ts:Date.now()});
+  if(hist.length>20)hist=hist.slice(0,20);
+  localStorage.setItem('kio_h',JSON.stringify(hist));
+  renderHist();
+}
+function renderHist(){
+  if(hist.length<=1)return;
+  histSec.style.display='block';histGrid.innerHTML='';
+  hist.slice(1).forEach(function(item){
+    var t=document.createElement('div');t.className='hist-thumb';
+    var i=document.createElement('img');i.src=item.src;
+    var ov=document.createElement('div');ov.className='hist-ov';ov.textContent='\uD83D\uDD0D';
+    t.appendChild(i);t.appendChild(ov);
+    t.onclick=function(){openLb(item.src);};
+    histGrid.appendChild(t);
+  });
+}
 function openLb(src){lbImg.src=src;lightbox.classList.add('show');}
-$('lbClose').onclick=()=>lightbox.classList.remove('show');
-lightbox.onclick=e=>{if(e.target===lightbox)lightbox.classList.remove('show');};
-
+$('lbClose').onclick=function(){lightbox.classList.remove('show');};
+lightbox.onclick=function(e){if(e.target===lightbox)lightbox.classList.remove('show');};
 async function generate(){
-  const prompt=promptEl.value.trim(),model=modelEl.value,size=selectedSize;
+  var prompt=promptEl.value.trim(),model=modelEl.value,size=selectedSize;
   if(!prompt){showStatus('error','\u8ACB\u8F38\u5165\u5716\u50CF\u63CF\u8FF0');return;}
   statusMsg.className='status';setLoad(true);
-  // open panel
   if(!panelOpen){panelOpen=true;apiPanel.classList.add('open');apiTabs.style.display='flex';}
-  const reqBody={prompt,model,size,n:1};
-  const reqUrl=window.location.origin+'/v1/images/generations';
-  const t0=Date.now();
+  var reqBody={prompt:prompt,model:model,size:size,n:1};
+  var reqUrl=window.location.origin+'/v1/images/generations';
+  var t0=Date.now();
   setApiReq(reqUrl,'POST',reqBody,null);
   try{
     progLbl.textContent='\u6B63\u5728\u9001\u51FA\u8ACB\u6C42...';
-    const res=await fetch('/v1/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
-    const t1=Date.now()-t0;
-    const data=await res.json();
+    var res=await fetch('/v1/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(reqBody)});
+    var t1=Date.now()-t0;
+    var data=await res.json();
     setApiRes(res.status,data,t1);
-    // switch to response tab
-    document.querySelectorAll('.api-tab').forEach(t=>t.classList.remove('active'));
+    document.querySelectorAll('.api-tab').forEach(function(t){t.classList.remove('active');});
     document.querySelector('.api-tab[data-tab="res"]').classList.add('active');
-    activeTab='res';$('tabReq').style.display='none';$('tabRes').style.display='block';$('tabPoll').style.display='none';
-    if(!res.ok)throw new Error(data?.error?.message||'HTTP '+res.status);
-    const item=data?.data?.[0];
-    // show poll info if present
-    if(item?.task_id||item?._poll_attempts){
+    activeTab='res';
+    $('tabReq').style.display='none';$('tabRes').style.display='block';$('tabPoll').style.display='none';
+    if(!res.ok)throw new Error((data&&data.error&&data.error.message)||'HTTP '+res.status);
+    var item=data&&data.data&&data.data[0];
+    if(item&&(item.task_id||item._poll_attempts)){
       setApiPoll(item._poll_attempts||'?',item.task_id||'-',item._poll_status||'completed',item);
     }
     if(!item)throw new Error('\u56DE\u61C9\u4E2D\u672A\u627E\u5230\u5716\u50CF\u6578\u64DA');
-    const imgSrc=item.url||(item.b64_json?'data:image/png;base64,'+item.b64_json:null);
-    if(!imgSrc){showStatus('error','\u7121\u6CD5\u89E3\u6790\u5716\u50CF URL');return;}
+    var imgSrc=item.url||(item.b64_json?'data:image/png;base64,'+item.b64_json:null);
+    if(!imgSrc){showStatus('error','\u7121\u6CD5\u89E3\u6790\u5716\u50CF URL');setLoad(false);return;}
     emptyState.style.display='none';latestResult.style.display='block';latestResult.innerHTML='';
     latestResult.appendChild(buildCard(imgSrc,prompt,item.revised_prompt||null));
     saveHist(imgSrc,prompt);showStatus('success','\u5716\u50CF\u751F\u6210\u6210\u529F\uFF01');
   }catch(err){
     apiDot.className='dot err';
     showStatus('error',err.message);
-  }finally{setLoad(false);}
+  }
+  setLoad(false);
 }
 $('genBtn').onclick=generate;
-promptEl.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}});
-if(hist.length>0){const l=hist[0];emptyState.style.display='none';latestResult.style.display='block';latestResult.appendChild(buildCard(l.src,l.prompt,null));renderHist();}
+promptEl.addEventListener('keydown',function(e){
+  if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}
+});
+if(hist.length>0){
+  var l=hist[0];
+  emptyState.style.display='none';latestResult.style.display='block';
+  latestResult.appendChild(buildCard(l.src,l.prompt,null));
+  renderHist();
+}
 <\/script>
 </body></html>`;
 
@@ -378,22 +406,21 @@ export default {
     const json = (d, s = 200) => new Response(JSON.stringify(d), {
       status: s, headers: { 'Content-Type': 'application/json', ...corsHeaders },
     });
-
     const apiHdr = () => ({
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': 'Bearer ' + API_KEY,
       'apikey': SUPA_ANON,
     });
     const pollHdr = () => ({
-      'Authorization': `Bearer ${API_KEY}`,
+      'Authorization': 'Bearer ' + API_KEY,
       'apikey': SUPA_ANON,
     });
 
     async function submitTask(body) {
-      const r = await fetch(`${SUPABASE_URL}/openai-compatible`, {
+      const r = await fetch(SUPABASE_URL + '/openai-compatible', {
         method: 'POST', headers: apiHdr(), body: JSON.stringify(body),
       });
-      if (!r.ok) throw new Error(`openai-compatible ${r.status}: ${await r.text()}`);
+      if (!r.ok) throw new Error('openai-compatible ' + r.status + ': ' + await r.text());
       return r.json();
     }
 
@@ -403,25 +430,25 @@ export default {
       while (Date.now() < deadline) {
         attempt++;
         await new Promise(r => setTimeout(r, interval));
-        const r = await fetch(`${SUPABASE_URL}/get-task-result?task_id=${taskId}`, { headers: pollHdr() });
+        const r = await fetch(SUPABASE_URL + '/get-task-result?task_id=' + taskId, { headers: pollHdr() });
         if (!r.ok) continue;
         const d = await r.json();
         const st = d.status || d.state || d.task_status;
-        console.log(`[KIO] Poll #${attempt} task=${taskId} status=${st}`);
+        console.log('[KIO] Poll #' + attempt + ' task=' + taskId + ' status=' + st);
         if (st === 'completed' || st === 'done' || st === 'success') return { data: d, attempts: attempt, status: st };
         if (st === 'failed' || st === 'error') throw new Error(d.error || d.message || 'Task failed');
       }
-      throw new Error(`Task ${taskId} timeout after ${maxWait / 1000}s`);
+      throw new Error('Task ' + taskId + ' timeout after ' + (maxWait/1000) + 's');
     }
 
     function extractImg(r) {
       return r.image_url || r.url || r.output_url
-        || r.output?.url || r.result?.url || r.result?.image_url
+        || (r.output && r.output.url) || (r.result && (r.result.url || r.result.image_url))
         || (Array.isArray(r.images) ? r.images[0] : null)
-        || (Array.isArray(r.data) ? (r.data[0]?.url || r.data[0]?.image_url) : null)
+        || (Array.isArray(r.data) ? (r.data[0] && (r.data[0].url || r.data[0].image_url)) : null)
         || null;
     }
-    function extractB64(r) { return r.b64_json || r.base64 || r.result?.b64_json || null; }
+    function extractB64(r) { return r.b64_json || r.base64 || (r.result && r.result.b64_json) || null; }
 
     try {
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
@@ -446,16 +473,13 @@ export default {
 
         if (!prompt) return json({ error: { message: 'prompt is required' } }, 400);
 
-        // 記錄請求資訊
-        const requestInfo = { prompt, model, n, size, quality, style, endpoint: `${SUPABASE_URL}/openai-compatible` };
+        const requestInfo = { prompt, model, n, size, quality, style, endpoint: SUPABASE_URL + '/openai-compatible' };
         const t0 = Date.now();
 
         const submitResp = await submitTask({ prompt, model, n, size, quality, style, response_format, ...extra });
         const submitMs = Date.now() - t0;
+        console.log('[KIO] submit: ' + JSON.stringify(submitResp).slice(0, 400));
 
-        console.log('[KIO] submit:', JSON.stringify(submitResp).slice(0, 400));
-
-        // 同步回傳
         const dImg = extractImg(submitResp);
         const dB64 = extractB64(submitResp);
         if (dImg || dB64) {
@@ -466,24 +490,21 @@ export default {
           });
         }
 
-        // 取 task_id
         const taskId =
-          submitResp.data?.[0]?.task_id ||
+          (submitResp.data && submitResp.data[0] && submitResp.data[0].task_id) ||
           submitResp.task_id || submitResp.id ||
           submitResp.job_id  || submitResp.request_id;
 
         if (!taskId) {
           return json({
             created: Math.floor(Date.now()/1000),
-            warning: 'Unknown upstream format — no task_id found',
+            warning: 'Unknown upstream format - no task_id found',
             _debug: { request: requestInfo, submit_response: submitResp },
             data: [{ _raw: submitResp }],
           });
         }
 
-        console.log(`[KIO] task_id=${taskId}, polling...`);
-
-        // 輪詢
+        console.log('[KIO] task_id=' + taskId + ', polling...');
         const { data: pollData, attempts, status: pollStatus } = await pollUntilDone(taskId);
         const totalMs = Date.now() - t0;
         const imgUrl  = extractImg(pollData);
@@ -492,14 +513,9 @@ export default {
         return json({
           created: Math.floor(Date.now()/1000),
           _debug: {
-            request:     requestInfo,
-            submit_ms:   submitMs,
-            total_ms:    totalMs,
-            mode:        'async',
-            task_id:     taskId,
-            poll_attempts: attempts,
-            poll_status: pollStatus,
-            raw_poll:    pollData,
+            request: requestInfo, submit_ms: submitMs, total_ms: totalMs,
+            mode: 'async', task_id: taskId,
+            poll_attempts: attempts, poll_status: pollStatus, raw_poll: pollData,
           },
           data: [{
             ...(imgUrl ? { url: imgUrl } : {}),
@@ -507,15 +523,15 @@ export default {
             revised_prompt: pollData.revised_prompt || pollData.enhanced_prompt || prompt,
             task_id: taskId,
             _poll_attempts: attempts,
-            _poll_status:   pollStatus,
+            _poll_status: pollStatus,
           }],
         });
       }
 
-      return json({ error: { message: `Not found: ${request.method} ${url.pathname}` }, ui: '/' }, 404);
+      return json({ error: { message: 'Not found: ' + request.method + ' ' + url.pathname }, ui: '/' }, 404);
 
     } catch (err) {
-      console.error('[KIO] Error:', err.stack || err.message);
+      console.error('[KIO] Error: ' + (err.stack || err.message));
       return json({ error: { message: err.message || 'Internal server error' }, _debug: { stack: err.stack } }, 500);
     }
   },
