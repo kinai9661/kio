@@ -1,7 +1,7 @@
 /**
- * KIO Gateway v3.0 - OpenAI Compatible API + Built-in UI
- * Visit / to open the image generator UI
- * Reverse-engineers: https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1/submit-image-task
+ * KIO Gateway v4.0 - OpenAI Compatible API + Built-in UI
+ * Backend: gjosebfngzowbcrwzxnw.supabase.co/functions/v1/openai-compatible
+ * Flow: POST /openai-compatible → get task_id → poll /get-task-result
  */
 
 const HTML_UI = `<!DOCTYPE html>
@@ -79,14 +79,7 @@ textarea#prompt{min-height:110px;resize:vertical;line-height:1.6;}
   <aside class="sidebar">
     <div class="logo">
       <div class="logo-icon">&#127912;</div>
-      <div><h1>KIO Gateway</h1><small>OpenAI Compatible API</small></div>
-    </div>
-    <div>
-      <div class="section-label">&#128279; API &#35373;&#23450;</div>
-      <div class="field">
-        <label>Gateway URL</label>
-        <input type="text" id="apiUrl" placeholder="https://kio.kines966176.workers.dev">
-      </div>
+      <div><h1>KIO Gateway</h1><small>medo image generator</small></div>
     </div>
     <div>
       <div class="section-label">&#128221; &#22294;&#20687;&#25551;&#36848;</div>
@@ -97,28 +90,18 @@ textarea#prompt{min-height:110px;resize:vertical;line-height:1.6;}
     </div>
     <div>
       <div class="section-label">&#9881;&#65039; &#21443;&#25976;&#35373;&#23450;</div>
-      <div class="row2">
-        <div class="field"><label>&#27169;&#22411;</label>
-          <select id="model">
-            <option value="medo-image" selected>medo-image</option>
-            <option value="dall-e-3">DALL-E 3</option>
-            <option value="dall-e-2">DALL-E 2</option>
-            <option value="gpt-image-1">GPT Image 1</option>
-          </select>
-        </div>
-        <div class="field"><label>&#21697;&#36074;</label>
-          <select id="quality">
-            <option value="standard">&#26647;&#28310;</option>
-            <option value="high">&#39640;&#21697;&#36074; HD</option>
-          </select>
-        </div>
+      <div class="field"><label>&#27169;&#22411;</label>
+        <select id="model">
+          <option value="gemini-3.1-pro-preview" selected>gemini-3.1-pro-preview</option>
+          <option value="medo-image">medo-image</option>
+          <option value="dall-e-3">DALL-E 3</option>
+        </select>
       </div>
       <div class="field" style="margin-top:10px"><label>&#23610;&#23544;</label>
         <select id="size">
           <option value="1024x1024">1:1 &#27491;&#26041;&#24418; (1024&#215;1024)</option>
           <option value="1024x1792">9:16 &#35611;&#21521; (1024&#215;1792)</option>
           <option value="1792x1024">16:9 &#6a6b;&#21521; (1792&#215;1024)</option>
-          <option value="512x512">&#23567;&#22294; (512&#215;512)</option>
         </select>
       </div>
     </div>
@@ -152,17 +135,13 @@ textarea#prompt{min-height:110px;resize:vertical;line-height:1.6;}
 <script>
 let history=JSON.parse(localStorage.getItem('kio_history')||'[]');let progressTimer=null;
 const $=id=>document.getElementById(id);
-const apiUrlEl=$('apiUrl'),promptEl=$('prompt'),modelEl=$('model'),qualityEl=$('quality'),sizeEl=$('size');
+const promptEl=$('prompt'),modelEl=$('model'),sizeEl=$('size');
 const generateBtn=$('generateBtn'),statusMsg=$('statusMsg'),progressWrap=$('progressWrap');
 const progressFill=$('progressFill'),progressLbl=$('progressLabel'),emptyState=$('emptyState');
 const latestResult=$('latestResult'),historySection=$('historySection'),historyGrid=$('historyGrid');
 const lightbox=$('lightbox'),lightboxImg=$('lightboxImg');
-// Auto-fill current Worker URL
-const workerUrl=window.location.origin;
-apiUrlEl.value=localStorage.getItem('kio_api_url')||workerUrl;
-apiUrlEl.addEventListener('change',()=>localStorage.setItem('kio_api_url',apiUrlEl.value.trim()));
 function showStatus(type,msg){statusMsg.className='status '+type;statusMsg.textContent=(type==='error'?'\u274c ':'\u2705 ')+msg;}
-function startProgress(label){progressWrap.classList.add('show');progressLbl.textContent=label||'\u6b63\u5728\u63d0\u4ea4\u4efb\u52d9...';let pct=0;progressFill.style.width='0%';progressTimer=setInterval(()=>{pct=Math.min(pct+(pct<60?3:pct<85?1:0.3),95);progressFill.style.width=pct+'%';},400);}
+function startProgress(label){progressWrap.classList.add('show');progressLbl.textContent=label||'\u6b63\u5728\u63d0\u4ea4...';let pct=0;progressFill.style.width='0%';progressTimer=setInterval(()=>{pct=Math.min(pct+(pct<60?2:pct<85?0.8:0.2),95);progressFill.style.width=pct+'%';},600);}
 function finishProgress(){clearInterval(progressTimer);progressFill.style.width='100%';setTimeout(()=>progressWrap.classList.remove('show'),600);}
 function setLoading(on){generateBtn.disabled=on;generateBtn.classList.toggle('loading',on);if(on)startProgress();else finishProgress();}
 function buildCard(imgSrc,prompt,revised){
@@ -182,12 +161,12 @@ function openLightbox(src){lightboxImg.src=src;lightbox.classList.add('show');}
 $('lightboxClose').onclick=()=>lightbox.classList.remove('show');
 lightbox.addEventListener('click',e=>{if(e.target===lightbox)lightbox.classList.remove('show');});
 async function generate(){
-  const apiUrl=apiUrlEl.value.trim()||window.location.origin;
-  const prompt=promptEl.value.trim(),model=modelEl.value,quality=qualityEl.value,size=sizeEl.value;
+  const prompt=promptEl.value.trim(),model=modelEl.value,size=sizeEl.value;
   if(!prompt){showStatus('error','\u8acb\u8f38\u5165\u5716\u50cf\u63cf\u8ff0');return;}
   statusMsg.className='status';setLoading(true);
   try{
-    const res=await fetch(apiUrl+'/v1/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,model,size,quality,n:1,response_format:'url'})});
+    progressLbl.textContent='\u6b63\u5728\u9001\u51fa\u8acb\u6c42...';
+    const res=await fetch('/v1/images/generations',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({prompt,model,size,n:1})});
     if(!res.ok){const e=await res.json().catch(()=>({}));throw new Error(e?.error?.message||'HTTP '+res.status);}
     const data=await res.json();
     const item=data?.data?.[0];
@@ -220,11 +199,10 @@ export default {
       return new Response(null, { status: 204, headers: corsHeaders });
     }
 
+    // ── Supabase 設定 ──────────────────────────────────────────────
     const SUPABASE_URL   = 'https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1';
     const SUPABASE_ANON  = env.SUPABASE_ANON_KEY  || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E';
     const SUPABASE_TOKEN = env.SUPABASE_AUTH_TOKEN || 'eyJhbGciOiJFUzI1NiIsImtpZCI6ImI0OWQ3OTkyLTI0NDItNDE3ZS05MzAxLTIzNzk1ZjE3NTJjNyIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJodHRwczovL2dqb3NlYmZuZ3pvd2Jjcnd6eG53LnN1cGFiYXNlLmNvL2F1dGgvdjEiLCJzdWIiOiJkYjI3NjI1Yi01ZjRjLTRjZjktYWE4MS01OTJkZmYyOTM3N2YiLCJhdWQiOiJhdXRoZW50aWNhdGVkIiwiZXhwIjoxNzc0MzY0MTc2LCJpYXQiOjE3NzQzNjA1NzYsImVtYWlsIjoia2luZXM5NjYxNzZAZ21haWwuY29tIiwicGhvbmUiOiIiLCJhcHBfbWV0YWRhdGEiOnsicHJvdmlkZXIiOiJzc286ZDkwZGM1ZTItMTdjNS00NGY1LWJjMjUtMWFmN2ZjZmJmZTQ1IiwicHJvdmlkZXJzIjpbInNzbzpkOTBkYzVlMi0xN2M1LTQ0ZjUtYmMyNS0xYWY3ZmNmYmZlNDUiXX0sInVzZXJfbWV0YWRhdGEiOnsiY3VzdG9tX2NsYWltcyI6e30sImVtYWlsIjoia2luZXM5NjYxNzZAZ21haWwuY29tIiwiZW1haWxfdmVyaWZpZWQiOnRydWUsImlzcyI6Imh0dHBzOi8vbWVkby5kZXYvZ29vZ2xlX21ldGFkYXRhIiwicGhvbmVfdmVyaWZpZWQiOmZhbHNlLCJzdWIiOiJraW5lczk2NjE3NkBnbWFpbC5jb20ifSwicm9sZSI6ImF1dGhlbnRpY2F0ZWQiLCJhYWwiOiJhYWwxIiwiYW1yIjpbeyJtZXRob2QiOiJzc28vc2FtbCIsInRpbWVzdGFtcCI6MTc3MjkwOTUyNSwicHJvdmlkZXIiOiJkOTBkYzVlMi0xN2M1LTQ0ZjUtYmMyNS0xYWY3ZmNmYmZlNDUifV0sInNlc3Npb25faWQiOiIzNTAxZjQ3NS0wMzEyLTQ3MTctYTU2YS1kN2ZlZWMzZDBkNTAiLCJpc19hbm9ueW1vdXMiOmZhbHNlfQ.bV3Q6DZAtxT_ETsiM0gLFPXiKTqKxPoH1czwlANF6EyQ7C98E_UwwGJZ0oT7Sai0OT_m4kpW8bypPkfquWuI5A';
-    const OPENAI_API_KEY = env.OPENAI_API_KEY || '';
-    const OPENAI_BASE    = env.OPENAI_BASE_URL || 'https://api.openai.com/v1';
 
     const json = (data, status = 200) =>
       new Response(JSON.stringify(data), {
@@ -232,101 +210,163 @@ export default {
         headers: { 'Content-Type': 'application/json', ...corsHeaders },
       });
 
-    const supabaseHeaders = () => ({
+    const supaHeaders = () => ({
       'Content-Type': 'application/json',
       'apikey': SUPABASE_ANON,
       'Authorization': `Bearer ${SUPABASE_TOKEN}`,
     });
 
-    async function submitImageTask(payload) {
-      const res = await fetch(`${SUPABASE_URL}/submit-image-task`, {
+    // ── Step 1: 呼叫 openai-compatible 送出任務 ────────────────────
+    async function submitToOpenAICompat(body) {
+      const res = await fetch(`${SUPABASE_URL}/openai-compatible`, {
         method: 'POST',
-        headers: supabaseHeaders(),
-        body: JSON.stringify(payload),
+        headers: supaHeaders(),
+        body: JSON.stringify(body),
       });
-      if (!res.ok) throw new Error(`submit-image-task failed: ${res.status} ${await res.text()}`);
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(`openai-compatible failed: ${res.status} ${err}`);
+      }
       return res.json();
     }
 
-    async function pollTaskResult(taskId, maxWait = 60000, interval = 2000) {
+    // ── Step 2: 輪詢 get-task-result 直到完成 ─────────────────────
+    async function pollUntilDone(taskId, maxWait = 120000, interval = 3000) {
       const deadline = Date.now() + maxWait;
+      let attempt = 0;
       while (Date.now() < deadline) {
+        attempt++;
         await new Promise(r => setTimeout(r, interval));
-        const res = await fetch(`${SUPABASE_URL}/get-task-result?task_id=${taskId}`, { headers: supabaseHeaders() });
-        if (res.ok) {
-          const data = await res.json();
-          const status = data.status || data.state || data.task_status;
-          if (status === 'completed' || status === 'done' || status === 'success') return data;
-          if (status === 'failed' || status === 'error') throw new Error(data.error || 'Task failed');
+        const res = await fetch(`${SUPABASE_URL}/get-task-result?task_id=${taskId}`, {
+          headers: supaHeaders(),
+        });
+        if (!res.ok) continue;
+        const data = await res.json();
+        const status = data.status || data.state || data.task_status;
+        console.log(`Poll #${attempt} task_id=${taskId} status=${status}`);
+
+        if (status === 'completed' || status === 'done' || status === 'success') return data;
+        if (status === 'failed' || status === 'error') {
+          throw new Error(data.error || data.message || 'Task failed');
         }
+        // 仍是 pending/processing，繼續等
       }
-      throw new Error('Task polling timeout after 60s');
+      throw new Error(`Task ${taskId} timeout after ${maxWait/1000}s`);
     }
 
-    function toOpenAIImageResponse(taskResult, prompt) {
-      const imageUrl = taskResult.image_url || taskResult.url || taskResult.output_url || taskResult.result?.url || (taskResult.images && taskResult.images[0]) || null;
-      const b64 = taskResult.b64_json || taskResult.base64 || taskResult.result?.b64_json || null;
-      return {
-        created: Math.floor(Date.now() / 1000),
-        data: [{ ...(imageUrl ? { url: imageUrl } : {}), ...(b64 ? { b64_json: b64 } : {}), revised_prompt: taskResult.revised_prompt || taskResult.enhanced_prompt || prompt }],
-        _raw: taskResult,
-      };
+    // ── 從任意格式結果中取出圖像 URL ──────────────────────────────
+    function extractImage(result) {
+      return result.image_url
+        || result.url
+        || result.output_url
+        || result.output?.url
+        || result.result?.url
+        || result.result?.image_url
+        || (Array.isArray(result.images) ? result.images[0] : null)
+        || (Array.isArray(result.data) ? result.data[0]?.url || result.data[0]?.image_url : null)
+        || null;
+    }
+
+    function extractB64(result) {
+      return result.b64_json || result.base64 || result.result?.b64_json || null;
     }
 
     try {
 
-      // ── GET / or /index.html → 回傳 UI ─────────────────────────────────────
+      // ── GET / → UI ──────────────────────────────────────────────
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html')) {
         return new Response(HTML_UI, {
           headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' },
         });
       }
 
-      // ── GET /health ──────────────────────────────────────────────────
+      // ── GET /health ─────────────────────────────────────────────
       if (request.method === 'GET' && url.pathname === '/health') {
-        return json({ status: 'ok', service: 'kio-gateway', version: '3.0.0', ui: '/' });
+        return json({ status: 'ok', service: 'kio-gateway', version: '4.0.0', backend: 'openai-compatible', ui: '/' });
       }
 
-      // ── GET /v1/models ─────────────────────────────────────────────
+      // ── GET /v1/models ──────────────────────────────────────────
       if (request.method === 'GET' && url.pathname === '/v1/models') {
         return json({ object: 'list', data: [
-          { id: 'medo-image', object: 'model', created: 1700000000, owned_by: 'medo' },
-          { id: 'dall-e-3', object: 'model', created: 1700000000, owned_by: 'openai' },
+          { id: 'gemini-3.1-pro-preview', object: 'model', created: 1700000000, owned_by: 'medo' },
+          { id: 'medo-image',             object: 'model', created: 1700000000, owned_by: 'medo' },
+          { id: 'dall-e-3',              object: 'model', created: 1700000000, owned_by: 'openai' },
         ]});
       }
 
-      // ── POST /v1/images/generations ─────────────────────────────────
-      if (request.method === 'POST' && (url.pathname === '/v1/images/generations' || url.pathname === '/v1/images/generate')) {
+      // ── POST /v1/images/generations ─────────────────────────────
+      //    核心邏輯：送出 → 取 task_id → 輪詢 → 回傳圖像
+      if (request.method === 'POST' &&
+         (url.pathname === '/v1/images/generations' || url.pathname === '/v1/images/generate')) {
+
         const body = await request.json();
-        const { prompt, model = 'medo-image', n = 1, size = '1024x1024', quality = 'standard', style = 'vivid', response_format = 'url', ...extra } = body;
-        if (!prompt) return json({ error: { message: 'prompt is required', type: 'invalid_request_error' } }, 400);
-        const [width, height] = size.split('x').map(Number);
-        const supabasePayload = { prompt, model, n, width: width||1024, height: height||1024, size, quality, style, response_format, num_images: n, image_size: size, aspect_ratio: `${width||1024}:${height||1024}`, ...extra };
-        const taskResponse = await submitImageTask(supabasePayload);
-        const directImage = taskResponse.image_url || taskResponse.url || taskResponse.b64_json || taskResponse.base64 || taskResponse.result?.url || taskResponse.data?.[0]?.url;
-        if (directImage) return json(toOpenAIImageResponse(taskResponse, prompt));
-        const taskId = taskResponse.task_id || taskResponse.id || taskResponse.job_id || taskResponse.request_id;
-        if (taskId) return json(toOpenAIImageResponse(await pollTaskResult(taskId), prompt));
-        return json({ created: Math.floor(Date.now()/1000), data: [{ url: null, _raw: taskResponse }], warning: 'Unknown upstream format' });
+        const {
+          prompt,
+          model           = 'gemini-3.1-pro-preview',
+          n               = 1,
+          size            = '1024x1024',
+          quality         = 'standard',
+          style           = 'vivid',
+          response_format = 'url',
+          ...extra
+        } = body;
+
+        if (!prompt) {
+          return json({ error: { message: 'prompt is required', type: 'invalid_request_error' } }, 400);
+        }
+
+        // 送出到 openai-compatible
+        const submitResp = await submitToOpenAICompat({ prompt, model, n, size, quality, style, response_format, ...extra });
+
+        // 如果直接回傳了圖像（同步模式）
+        const directImg = extractImage(submitResp);
+        const directB64 = extractB64(submitResp);
+        if (directImg || directB64) {
+          return json({
+            created: Math.floor(Date.now() / 1000),
+            data: [{
+              ...(directImg ? { url: directImg } : {}),
+              ...(directB64 ? { b64_json: directB64 } : {}),
+              revised_prompt: submitResp.revised_prompt || prompt,
+            }],
+          });
+        }
+
+        // 非同步模式：取 task_id 然後輪詢
+        const taskId =
+          submitResp.data?.[0]?.task_id
+          || submitResp.task_id
+          || submitResp.id
+          || submitResp.job_id
+          || submitResp.request_id;
+
+        if (!taskId) {
+          // 無法識別，原樣回傳供 debug
+          return json({ created: Math.floor(Date.now()/1000), data: [{ _raw: submitResp }], warning: 'Unknown upstream format' });
+        }
+
+        // 輪詢直到完成
+        const result = await pollUntilDone(taskId);
+        const imgUrl = extractImage(result);
+        const b64    = extractB64(result);
+
+        return json({
+          created: Math.floor(Date.now() / 1000),
+          data: [{
+            ...(imgUrl ? { url: imgUrl } : {}),
+            ...(b64   ? { b64_json: b64 } : {}),
+            revised_prompt: result.revised_prompt || result.enhanced_prompt || prompt,
+            task_id: taskId,
+          }],
+        });
       }
 
-      // ── POST /proxy/submit-image-task ──────────────────────────────
-      if (request.method === 'POST' && url.pathname === '/proxy/submit-image-task') {
-        const body = await request.json();
-        const res = await fetch(`${SUPABASE_URL}/submit-image-task`, { method: 'POST', headers: supabaseHeaders(), body: JSON.stringify(body) });
-        return json(await res.json(), res.status);
-      }
-
-      // ── POST /v1/chat/completions ──────────────────────────────────
-      if (request.method === 'POST' && url.pathname === '/v1/chat/completions') {
-        if (!OPENAI_API_KEY) return json({ error: { message: 'OPENAI_API_KEY not configured' } }, 401);
-        const body = await request.json();
-        const res = await fetch(`${OPENAI_BASE}/chat/completions`, { method: 'POST', headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${OPENAI_API_KEY}` }, body: JSON.stringify(body) });
-        if (body.stream) return new Response(res.body, { status: res.status, headers: { 'Content-Type': 'text/event-stream', 'Cache-Control': 'no-cache', ...corsHeaders } });
-        return json(await res.json(), res.status);
-      }
-
-      return json({ error: { message: `Not found: ${request.method} ${url.pathname}` }, ui: '/' }, 404);
+      // ── 404 ─────────────────────────────────────────────────────
+      return json({
+        error: { message: `Not found: ${request.method} ${url.pathname}` },
+        ui: '/',
+        routes: ['GET /', 'GET /health', 'GET /v1/models', 'POST /v1/images/generations'],
+      }, 404);
 
     } catch (error) {
       console.error('Worker Error:', error.stack || error.message);
