@@ -315,6 +315,14 @@ pre.api-code .bool{color:#22c55e}
           <button class="size-btn" data-size="7168x4096">4K L<span class="ratio">7168&#xD7;4096</span></button>
         </div>
       </div>
+      <div class="field">
+        <label id="lbl-upload">Upload Media</label>
+        <input type="file" id="uploadFile" accept="image/*,video/*">
+        <button class="gen-btn" id="uploadBtn" type="button" style="margin-top:6px;">
+          <span class="btn-txt" id="uploadBtnTxt">&#11014;&#65039; Upload</span>
+          <div class="spin"></div>
+        </button>
+      </div>
     </div>
   </div>
 
@@ -417,7 +425,8 @@ var T={
     'btn-dl':'&#11015;&#65039; Download','btn-copy-url':'&#128203; Copy URL',
     'btn-copied':'&#10003; Copied','btn-zoom':'&#128269; Zoom',
     'poll-times':'polls','tab-req':'&#128228; Req','tab-res':'&#128229; Res','tab-poll':'&#128260; Poll',
-    'hist-video':'VIDEO'
+    'hist-video':'VIDEO','lbl-upload':'Upload Media','btn-upload':'&#11014;&#65039; Upload',
+    'uploading':'Uploading media...','ok-upload':'Upload successful!','err-file':'Please select a file'
   },
   zh:{
     'lbl-prompt':'\u63d0\u793a\u8a5e','lbl-settings':'\u8a2d\u5b9a','lbl-apikey':'API \u91d1\u9470',
@@ -446,13 +455,14 @@ var T={
     'btn-zoom':'&#128269; \u653e\u5927',
     'poll-times':'\u6b21\u8f2a\u8a62',
     'tab-req':'&#128228; \u8acb\u6c42','tab-res':'&#128229; \u56de\u61c9','tab-poll':'&#128260; \u8f2a\u8a62',
-    'hist-video':'\u5f71\u7247'
+    'hist-video':'\u5f71\u7247','lbl-upload':'\u4e0a\u50b3\u5a92\u9ad4','btn-upload':'&#11014;&#65039; \u4e0a\u50b3',
+    'uploading':'\u6b63\u5728\u4e0a\u50b3\u5a92\u9ad4...','ok-upload':'\u4e0a\u50b3\u6210\u529f\uff01','err-file':'\u8acb\u5148\u9078\u64c7\u6a94\u6848'
   }
 };
 function tr(k){return T[LANG][k]||T.en[k]||k;}
 function applyLang(){
   ['lbl-prompt','lbl-settings','lbl-apikey','lbl-debug','lbl-genbtn','lbl-model','lbl-size',
-   'lbl-apikey-sub','lbl-empty-h','lbl-empty-p','tab-req','tab-res','tab-poll']
+   'lbl-apikey-sub','lbl-empty-h','lbl-empty-p','tab-req','tab-res','tab-poll','lbl-upload']
   .forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tr(id);});
   document.getElementById('lbl-prompt-hint').innerHTML=tr('lbl-prompt-hint');
   document.getElementById('prompt').placeholder=tr('prompt-ph');
@@ -461,6 +471,8 @@ function applyLang(){
   document.getElementById('dlBtn').innerHTML=tr('btn-dl');
   document.getElementById('cpUrlBtn').innerHTML=tr('btn-copy-url');
   document.getElementById('zoomBtn').innerHTML=tr('btn-zoom');
+  var upTxt=document.getElementById('uploadBtnTxt');
+  if(upTxt)upTxt.innerHTML=tr('btn-upload');
   updateKeyStatus();
   renderHist();
 }
@@ -633,9 +645,15 @@ document.getElementById('model').addEventListener('change',function(){
 });
 
 var genBtn=document.getElementById('genBtn');
+var uploadBtn=document.getElementById('uploadBtn');
 function setLoad(on,lbl){
   genBtn.disabled=on;genBtn.classList.toggle('loading',on);
   if(on)startProg(lbl||tr('sending'));else endProg();
+}
+function setUploadLoad(on){
+  if(!uploadBtn)return;
+  uploadBtn.disabled=on;
+  uploadBtn.classList.toggle('loading',on);
 }
 
 async function generate(){
@@ -686,7 +704,57 @@ async function generate(){
   }
   setLoad(false);
 }
+async function uploadMedia(){
+  var fileInput=document.getElementById('uploadFile');
+  var file=fileInput&&fileInput.files?fileInput.files[0]:null;
+  if(!file){showStatus('error',tr('err-file'));return;}
+
+  document.getElementById('statusMsg').className='status';
+  setUploadLoad(true);
+  startProg(tr('uploading'));
+
+  var headers={};
+  if(customKey)headers['X-User-Api-Key']=customKey;
+  var reqPath='/v1/media/upload';
+  var reqMeta={filename:file.name,size:file.size,type:file.type||'application/octet-stream'};
+  setApiReq(window.location.origin+reqPath,'POST',reqMeta);
+  var t0=Date.now();
+
+  try{
+    var formData=new FormData();
+    formData.append('file',file,file.name||('upload-'+Date.now()));
+    var res=await fetch(reqPath,{method:'POST',headers:headers,body:formData});
+    var ms=Date.now()-t0;
+    var data=await res.json().catch(function(){return{};});
+    setApiRes(res.status,data,ms);
+
+    document.querySelectorAll('.api-tab').forEach(function(t){t.classList.remove('active');});
+    document.getElementById('tab-res').classList.add('active');
+    activeTab='res';
+    document.getElementById('tabReq').style.display='none';
+    document.getElementById('tabRes').style.display='block';
+    document.getElementById('tabPoll').style.display='none';
+
+    if(!res.ok)throw new Error((data&&data.error&&data.error.message)||'HTTP '+res.status);
+    var hostedUrl=(data&&data.url)||null;
+    if(!hostedUrl)throw new Error(tr('err-no-url'));
+
+    var mediaKind=(file.type||'').startsWith('video/')?'video':'image';
+    showPreview(hostedUrl,file.name||'upload',mediaKind);
+    saveHist(hostedUrl,file.name||'upload',mediaKind);
+    showStatus('success',tr('ok-upload'));
+    fileInput.value='';
+  }catch(err){
+    document.getElementById('apiDot').className='api-dot err';
+    showStatus('error',err.message||String(err));
+  }finally{
+    setUploadLoad(false);
+    endProg();
+  }
+}
+
 genBtn.onclick=generate;
+if(uploadBtn)uploadBtn.onclick=uploadMedia;
 document.getElementById('prompt').addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}
 });
@@ -716,6 +784,7 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
 
     const SUPABASE_URL = 'https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1';
+    const MEDIA_UPLOAD_URL = env.MEDIA_UPLOAD_URL || 'https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload';
     const DEFAULT_KEY  = env.MEDO_API_KEY || 'nb_SBa89oD7xBbHSrwJKny3acDF6kRFuPBNgF2BEEDTdnRGMyBe';
     const SUPA_ANON    = env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E';
 
@@ -783,6 +852,57 @@ export default {
 
     function extractB64(r) { return r.b64_json || r.base64 || (r.result && r.result.b64_json) || null; }
 
+    function pickUploadUrl(r) {
+      if (!r || typeof r !== 'object') return null;
+      return r.url || r.publicUrl || r.public_url
+        || (r.data && (r.data.url || r.data.publicUrl || r.data.public_url))
+        || null;
+    }
+
+    function inferExtFromContentType(ct, fallback = 'bin') {
+      const t = String(ct || '').toLowerCase();
+      if (t.includes('image/png')) return 'png';
+      if (t.includes('image/jpeg') || t.includes('image/jpg')) return 'jpg';
+      if (t.includes('image/webp')) return 'webp';
+      if (t.includes('image/gif')) return 'gif';
+      if (t.includes('video/mp4')) return 'mp4';
+      if (t.includes('video/webm')) return 'webm';
+      if (t.includes('video/quicktime')) return 'mov';
+      return fallback;
+    }
+
+    async function uploadRemoteMedia(mediaUrl, fallbackExt = 'bin') {
+      if (!mediaUrl || String(mediaUrl).startsWith('data:')) return mediaUrl;
+      try {
+        const source = await fetch(mediaUrl);
+        if (!source.ok) return mediaUrl;
+
+        const ctype = source.headers.get('content-type') || '';
+        const ext = inferExtFromContentType(ctype, fallbackExt);
+        const blob = await source.blob();
+        const isVideo = String(ctype).toLowerCase().startsWith('video/');
+
+        const formData = new FormData();
+        const fileName = (isVideo ? 'kio-video-' : 'kio-image-') + Date.now() + '.' + ext;
+        formData.append('file', blob, fileName);
+
+        const uploaded = await fetch(MEDIA_UPLOAD_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + API_KEY,
+            'apikey': SUPA_ANON,
+          },
+          body: formData,
+        });
+
+        if (!uploaded.ok) return mediaUrl;
+        const payload = await uploaded.json().catch(() => null);
+        return pickUploadUrl(payload) || mediaUrl;
+      } catch (e) {
+        return mediaUrl;
+      }
+    }
+
     try {
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
         return new Response(HTML_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
@@ -797,6 +917,40 @@ export default {
           { id: 'veo-3.1',               object: 'model', owned_by: 'google' },
           { id: 'veo-3.1-preview',       object: 'model', owned_by: 'google' },
         ]});
+
+      if (request.method === 'POST' && url.pathname === '/v1/media/upload') {
+        const incoming = await request.formData();
+        const file = incoming.get('file');
+        if (!file || typeof file === 'string') {
+          return json({ error: { message: 'file is required' } }, 400);
+        }
+
+        const formData = new FormData();
+        formData.append('file', file, file.name || ('upload-' + Date.now()));
+
+        const upstream = await fetch(MEDIA_UPLOAD_URL, {
+          method: 'POST',
+          headers: {
+            'Authorization': 'Bearer ' + API_KEY,
+            'apikey': SUPA_ANON,
+          },
+          body: formData,
+        });
+
+        const rawText = await upstream.text();
+        let raw;
+        try {
+          raw = JSON.parse(rawText);
+        } catch {
+          raw = { raw: rawText };
+        }
+
+        if (!upstream.ok) {
+          return json({ error: { message: 'media upload failed', upstream: raw } }, upstream.status);
+        }
+
+        return json({ url: pickUploadUrl(raw), data: raw });
+      }
 
       if (
         request.method === 'POST' && (
@@ -823,10 +977,12 @@ export default {
         const submitResp = await submitTask({ prompt, model, n, size, quality, style, response_format, ...extra });
         const submitMs = Date.now() - t0;
 
-        const syncVideo = extractVideo(submitResp);
-        const syncImg   = extractImg(submitResp);
-        const syncB64   = extractB64(submitResp);
+        let syncVideo = extractVideo(submitResp);
+        let syncImg   = extractImg(submitResp);
+        const syncB64 = extractB64(submitResp);
         if (syncVideo || syncImg || syncB64) {
+          if (syncVideo) syncVideo = await uploadRemoteMedia(syncVideo, 'mp4');
+          if (syncImg) syncImg = await uploadRemoteMedia(syncImg, 'png');
           return json({
             created: Math.floor(Date.now() / 1000),
             _debug: { request: requestInfo, submit_ms: submitMs, mode: 'sync' },
@@ -854,9 +1010,11 @@ export default {
 
         const { data: pollData, attempts, status: pollStatus } = await pollUntilDone(taskId);
         const totalMs = Date.now() - t0;
-        const videoUrl = extractVideo(pollData);
-        const imgUrl   = extractImg(pollData);
-        const b64      = extractB64(pollData);
+        let videoUrl = extractVideo(pollData);
+        let imgUrl   = extractImg(pollData);
+        const b64    = extractB64(pollData);
+        if (videoUrl) videoUrl = await uploadRemoteMedia(videoUrl, 'mp4');
+        if (imgUrl) imgUrl = await uploadRemoteMedia(imgUrl, 'png');
 
         return json({
           created: Math.floor(Date.now() / 1000),
