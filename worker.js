@@ -791,7 +791,7 @@ export default {
     const USER_KEY = request.headers.get('X-User-Api-Key');
     const API_KEY  = (USER_KEY && USER_KEY.trim()) ? USER_KEY.trim() : DEFAULT_KEY;
     const MEDIA_UPLOAD_API_KEY = env.MEDIA_UPLOAD_API_KEY || API_KEY;
-    const MEDIA_UPLOAD_ANON_KEY = env.MEDIA_UPLOAD_ANON_KEY || '';
+    const MEDIA_UPLOAD_ANON_KEY = env.MEDIA_UPLOAD_ANON_KEY || SUPA_ANON;
 
     const json = (d, s = 200) => new Response(JSON.stringify(d), {
       status: s, headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -805,11 +805,10 @@ export default {
       'Authorization': 'Bearer ' + API_KEY,
       'apikey': SUPA_ANON,
     });
-    const mediaUploadHdr = () => {
-      const h = { 'Authorization': 'Bearer ' + MEDIA_UPLOAD_API_KEY };
-      if (MEDIA_UPLOAD_ANON_KEY) h['apikey'] = MEDIA_UPLOAD_ANON_KEY;
-      return h;
-    };
+    const mediaUploadHdr = () => ({
+      'Authorization': 'Bearer ' + MEDIA_UPLOAD_API_KEY,
+      'apikey': MEDIA_UPLOAD_ANON_KEY,
+    });
 
     const isVideoModel = (m) => /(^|-)veo/i.test(String(m || '')) || String(m || '').includes('veo');
 
@@ -949,8 +948,15 @@ export default {
         if (!upstream.ok) {
           const upstreamMsg = (raw && typeof raw === 'object' && (
             (raw.error && raw.error.message) || raw.message || raw.raw
-          )) || 'unknown upstream error';
-          return json({ error: { message: 'media upload failed: ' + upstreamMsg, upstream: raw } }, upstream.status);
+          )) || ('HTTP ' + upstream.status + ' ' + upstream.statusText);
+          return json({
+            error: {
+              message: 'media upload failed: ' + upstreamMsg,
+              status: upstream.status,
+              statusText: upstream.statusText,
+              upstream: raw,
+            }
+          }, upstream.status);
         }
 
         return json({ url: pickUploadUrl(raw), data: raw });
