@@ -656,6 +656,39 @@ function setUploadLoad(on){
   uploadBtn.classList.toggle('loading',on);
 }
 
+function extFromMime(mime){
+  var m=String(mime||'').toLowerCase();
+  if(m.indexOf('image/png')===0)return'png';
+  if(m.indexOf('image/jpeg')===0)return'jpg';
+  if(m.indexOf('image/webp')===0)return'webp';
+  if(m.indexOf('image/gif')===0)return'gif';
+  if(m.indexOf('video/mp4')===0)return'mp4';
+  if(m.indexOf('video/webm')===0)return'webm';
+  return'bin';
+}
+
+async function uploadDataUrlToHistory(dataUrl,kind){
+  if(!dataUrl||!String(dataUrl).startsWith('data:'))return null;
+  try{
+    var dataRes=await fetch(dataUrl);
+    if(!dataRes.ok)return null;
+    var blob=await dataRes.blob();
+    var mime=blob.type||'';
+    var ext=extFromMime(mime);
+    var headers={};
+    if(customKey)headers['X-User-Api-Key']=customKey;
+    var formData=new FormData();
+    var fileName=(kind==='video'?'kio-video-':'kio-image-')+Date.now()+'.'+ext;
+    formData.append('file',blob,fileName);
+    var upRes=await fetch('/v1/media/upload',{method:'POST',headers:headers,body:formData});
+    var upData=await upRes.json().catch(function(){return{};});
+    if(!upRes.ok)return null;
+    return (upData&&upData.url)||null;
+  }catch(e){
+    return null;
+  }
+}
+
 async function generate(){
   var prompt=document.getElementById('prompt').value.trim();
   var model=document.getElementById('model').value;
@@ -694,10 +727,19 @@ async function generate(){
     var mediaKind=videoSrc?'video':(imageSrc?inferKind(imageSrc):(videoMode?'video':'image'));
     if(!mediaSrc){showStatus('error',tr('err-no-url'));setLoad(false);return;}
     showPreview(mediaSrc,prompt,mediaKind);
-    saveHist(mediaSrc,prompt,mediaKind);
-    if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
-    else if(mediaSrc.startsWith('data:'))showStatus('info',tr('info-b64-skip'));
-    else showStatus('success',tr('ok-gen-image'));
+    if(mediaSrc.startsWith('data:')){
+      var hostedFromB64=await uploadDataUrlToHistory(mediaSrc,mediaKind);
+      if(hostedFromB64){
+        saveHist(hostedFromB64,prompt,mediaKind);
+        showStatus('success',mediaKind==='video'?tr('ok-gen-video'):tr('ok-gen-image'));
+      }else{
+        showStatus('info',tr('info-b64-skip'));
+      }
+    }else{
+      saveHist(mediaSrc,prompt,mediaKind);
+      if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
+      else showStatus('success',tr('ok-gen-image'));
+    }
   }catch(err){
     document.getElementById('apiDot').className='api-dot err';
     showStatus('error',err.message||String(err));
