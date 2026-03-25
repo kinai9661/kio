@@ -1,45 +1,138 @@
-# KIO - OpenAI Compatible Image Generation Gateway
+# KIO Gateway - Image/Video Generation + Media Hosting
 
-一個基於 Cloudflare Workers 的 OpenAI 相容 API 閘道，支援圖像生成功能，並附帶完整的 Web UI 介面。
+基於 Cloudflare Workers 的 OpenAI-compatible API Gateway，整合：
+- 圖像生成
+- 影片生成
+- 媒體托管（上傳代理）
+- 內建 Web UI（含歷史紀錄 / API Debug / i18n）
+
+---
 
 ## 功能特色
 
-- ✅ OpenAI Compatible API Gateway
-- ✅ 圖像生成 (DALL-E 3 / DALL-E 2 / GPT Image 1)
-- ✅ 支援逆向工程輸出站 (Supabase Edge Function 代理)
-- ✅ 完整響應式 Web UI
-- ✅ 一鍵下載生成圖片
+- ✅ OpenAI-compatible 請求介面
+- ✅ 圖像生成：`/v1/images/generations`
+- ✅ 影片生成：`/v1/videos/generations`
+- ✅ 媒體上傳代理：`/v1/media/upload`
+- ✅ 自動托管：生成結果 URL 會再轉存到媒體托管端
+- ✅ 內建 UI：多語系（EN / ZH）、預覽、下載、歷史、Debug 面板
 
-## 部署方式
+---
 
-### Cloudflare Workers
+## 專案結構
 
-```bash
-npm install
-npx wrangler secret put OPENAI_API_KEY
-npx wrangler deploy
-```
+- `worker.js`：Cloudflare Worker 主程式（API + 內建 UI）
+- `index.html`：獨立靜態 UI（可另外部署）
+- `wrangler.toml`：Worker 設定與變數
 
-### 使用 UI
-
-直接開啟 `index.html` 或部署到 Cloudflare Pages / Vercel。
+---
 
 ## API 端點
 
-```
-POST /v1/images/generations
-POST /v1/chat/completions
+### 系統
+- `GET /`
+- `GET /index.html`
+- `GET /health`
+- `GET /v1/models`
+
+### 生成
+- `POST /v1/images/generations`
+- `POST /v1/images/generate`
+- `POST /v1/videos/generations`
+- `POST /v1/videos/generate`
+
+### 媒體上傳
+- `POST /v1/media/upload`
+
+---
+
+## 請求範例
+
+### 1) 圖像生成
+
+```bash
+curl -X POST https://<your-worker>.workers.dev/v1/images/generations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A futuristic city at dusk, neon lights, cinematic",
+    "model": "imagen-4",
+    "size": "1024x1024",
+    "n": 1,
+    "response_format": "url"
+  }'
 ```
 
-## 參數說明
+### 2) 影片生成
 
-```json
-{
-  "prompt": "圖像描述",
-  "model": "dall-e-3",
-  "size": "1024x1024",
-  "quality": "standard",
-  "n": 1,
-  "response_format": "b64_json"
-}
+```bash
+curl -X POST https://<your-worker>.workers.dev/v1/videos/generations \
+  -H "Content-Type: application/json" \
+  -d '{
+    "prompt": "A robot walking in rainy cyberpunk street",
+    "model": "veo-3.1",
+    "size": "1792x1024",
+    "n": 1,
+    "response_format": "url"
+  }'
 ```
+
+### 3) 媒體上傳（透過 Worker 代理）
+
+```bash
+curl -X POST https://<your-worker>.workers.dev/v1/media/upload \
+  -H "X-User-Api-Key: YOUR_API_KEY" \
+  -F "file=@/path/to/image.jpg"
+```
+
+### 4) 直接上傳到 Supabase Function
+
+```bash
+curl -X POST https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload \
+  -H "Authorization: Bearer YOUR_API_KEY" \
+  -F "file=@/path/to/image.jpg"
+```
+
+---
+
+## 環境變數
+
+目前程式採「可覆蓋 + fallback」策略。
+
+### 必要（建議使用 `wrangler secret`）
+- `MEDO_API_KEY`
+- `SUPABASE_ANON_KEY`
+
+### 可選
+- `MEDIA_UPLOAD_URL`
+  - 若未設定，會 fallback 到預設：
+    `https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload`
+
+`wrangler.toml` 範例：
+
+```toml
+[vars]
+MEDIA_UPLOAD_URL = "https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload"
+```
+
+---
+
+## 部署
+
+```bash
+npm install
+npx wrangler secret put MEDO_API_KEY
+npx wrangler secret put SUPABASE_ANON_KEY
+npx wrangler deploy
+```
+
+部署完成後：
+- 開啟 `https://<your-worker>.workers.dev/` 使用內建 UI
+- 或獨立部署 `index.html`
+
+---
+
+## 備註
+
+- 歷史紀錄僅保存可用 URL（不保存 `data:` base64）
+- `X-User-Api-Key` 會覆蓋預設 key
+- 如需更嚴格安全策略，建議限制 CORS 與移除硬編碼 fallback
