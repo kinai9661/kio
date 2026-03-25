@@ -792,6 +792,8 @@ export default {
     const API_KEY  = (USER_KEY && USER_KEY.trim()) ? USER_KEY.trim() : DEFAULT_KEY;
     const MEDIA_UPLOAD_API_KEY = env.MEDIA_UPLOAD_API_KEY || API_KEY;
     const MEDIA_UPLOAD_ANON_KEY = env.MEDIA_UPLOAD_ANON_KEY || SUPA_ANON;
+    const MEDIA_UPLOAD_TIMEOUT_MS = Math.max(3000, Number(env.MEDIA_UPLOAD_TIMEOUT_MS || 25000) || 25000);
+    const MEDIA_UPLOAD_MAX_RETRIES = Math.max(0, Number(env.MEDIA_UPLOAD_MAX_RETRIES || 1) || 1);
 
     const json = (d, s = 200) => new Response(JSON.stringify(d), {
       status: s, headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -809,6 +811,88 @@ export default {
       'Authorization': 'Bearer ' + MEDIA_UPLOAD_API_KEY,
       'apikey': MEDIA_UPLOAD_ANON_KEY,
     });
+
+    const isRetryableUploadStatus = (status) => status === 429 || status === 502 || status === 503 || status === 504;
+
+    async function fetchWithTimeout(resource, init = {}, timeoutMs = MEDIA_UPLOAD_TIMEOUT_MS) {
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+      try {
+        return await fetch(resource, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function uploadToMediaHost(buildFormData) {
+      let lastResult = null;
+      for (let i = 0; i <= MEDIA_UPLOAD_MAX_RETRIES; i++) {
+        try {
+          const upstream = await fetchWithTimeout(MEDIA_UPLOAD_URL, {
+            method: 'POST',
+            headers: mediaUploadHdr(),
+            body: buildFormData(),
+          });
+
+          const rawText = await upstream.text();
+          let raw;
+          try {
+            raw = JSON.parse(rawText);
+          } catch {
+            raw = { raw: rawText };
+          }
+
+          if (upstream.ok) {
+            return {
+              ok: true,
+              status: upstream.status,
+              statusText: upstream.statusText,
+              raw,
+              retryable: false,
+              attempts: i + 1,
+            };
+          }
+
+          const retryable = isRetryableUploadStatus(upstream.status);
+          lastResult = {
+            ok: false,
+            status: upstream.status,
+            statusText: upstream.statusText,
+            raw,
+            retryable,
+            attempts: i + 1,
+          };
+
+          if (!retryable || i >= MEDIA_UPLOAD_MAX_RETRIES) return lastResult;
+        } catch (e) {
+          const msg = (e && e.message) ? e.message : String(e || 'unknown upload error');
+          const lower = String(msg).toLowerCase();
+          const isTimeout = (e && e.name === 'AbortError') || lower.includes('abort') || lower.includes('timeout');
+
+          lastResult = {
+            ok: false,
+            status: isTimeout ? 504 : 0,
+            statusText: isTimeout ? 'Gateway Timeout' : 'FetchError',
+            raw: { message: msg },
+            retryable: true,
+            attempts: i + 1,
+          };
+
+          if (i >= MEDIA_UPLOAD_MAX_RETRIES) return lastResult;
+        }
+
+        await new Promise(r => setTimeout(r, 400 * (i + 1)));
+      }
+
+      return lastResult || {
+        ok: false,
+        status: 0,
+        statusText: 'Unknown',
+        raw: { message: 'unknown upload error' },
+        retryable: false,
+        attempts: 1,
+      };
+    }
 
     const isVideoModel = (m) => /(^|-)veo/i.test(String(m || '')) || String(m || '').includes('veo');
 
@@ -880,27 +964,23 @@ export default {
     async function uploadRemoteMedia(mediaUrl, fallbackExt = 'bin') {
       if (!mediaUrl || String(mediaUrl).startsWith('data:')) return mediaUrl;
       try {
-        const source = await fetch(mediaUrl);
+        const source = await fetchWithTimeout(mediaUrl, {}, MEDIA_UPLOAD_TIMEOUT_MS);
         if (!source.ok) return mediaUrl;
 
         const ctype = source.headers.get('content-type') || '';
         const ext = inferExtFromContentType(ctype, fallbackExt);
         const blob = await source.blob();
         const isVideo = String(ctype).toLowerCase().startsWith('video/');
-
-        const formData = new FormData();
         const fileName = (isVideo ? 'kio-video-' : 'kio-image-') + Date.now() + '.' + ext;
-        formData.append('file', blob, fileName);
 
-        const uploaded = await fetch(MEDIA_UPLOAD_URL, {
-          method: 'POST',
-          headers: mediaUploadHdr(),
-          body: formData,
+        const result = await uploadToMediaHost(() => {
+          const formData = new FormData();
+          formData.append('file', blob, fileName);
+          return formData;
         });
 
-        if (!uploaded.ok) return mediaUrl;
-        const payload = await uploaded.json().catch(() => null);
-        return pickUploadUrl(payload) || mediaUrl;
+        if (!result.ok) return mediaUrl;
+        return pickUploadUrl(result.raw) || mediaUrl;
       } catch (e) {
         return mediaUrl;
       }
@@ -928,38 +1008,30 @@ export default {
           return json({ error: { message: 'file is required' } }, 400);
         }
 
-        const formData = new FormData();
-        formData.append('file', file, file.name || ('upload-' + Date.now()));
-
-        const upstream = await fetch(MEDIA_UPLOAD_URL, {
-          method: 'POST',
-          headers: mediaUploadHdr(),
-          body: formData,
+        const result = await uploadToMediaHost(() => {
+          const formData = new FormData();
+          formData.append('file', file, file.name || ('upload-' + Date.now()));
+          return formData;
         });
 
-        const rawText = await upstream.text();
-        let raw;
-        try {
-          raw = JSON.parse(rawText);
-        } catch {
-          raw = { raw: rawText };
-        }
-
-        if (!upstream.ok) {
-          const upstreamMsg = (raw && typeof raw === 'object' && (
-            (raw.error && raw.error.message) || raw.message || raw.raw
-          )) || ('HTTP ' + upstream.status + ' ' + upstream.statusText);
+        if (!result.ok) {
+          const upstreamMsg = (result.raw && typeof result.raw === 'object' && (
+            (result.raw.error && result.raw.error.message) || result.raw.message || result.raw.raw
+          )) || ('HTTP ' + result.status + ' ' + result.statusText);
           return json({
             error: {
               message: 'media upload failed: ' + upstreamMsg,
-              status: upstream.status,
-              statusText: upstream.statusText,
-              upstream: raw,
+              status: result.status,
+              statusText: result.statusText,
+              retryable: !!result.retryable,
+              attempts: result.attempts,
+              timeout_ms: MEDIA_UPLOAD_TIMEOUT_MS,
+              upstream: result.raw,
             }
-          }, upstream.status);
+          }, result.status || 502);
         }
 
-        return json({ url: pickUploadUrl(raw), data: raw });
+        return json({ url: pickUploadUrl(result.raw), data: result.raw, attempts: result.attempts });
       }
 
       if (
