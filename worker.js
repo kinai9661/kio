@@ -437,25 +437,36 @@ var T={
     'poll-times':'polls','tab-req':'&#128228; Req','tab-res':'&#128229; Res','tab-poll':'&#128260; Poll'
   },
   zh:{
-    'lbl-prompt':'&#25551;&#36848;','lbl-settings':'&#35373;&#23450;','lbl-apikey':'API &#91325;',
-    'lbl-debug':'API &#35519;&#35430;','lbl-genbtn':'&#10024; &#29983;&#25104;',
-    'lbl-prompt-hint':'&#25551;&#36848; <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
-    'prompt-ph':'&#26410;&#26469;&#22478;&#24066;&#30340;&#40483;&#26230;&#65292;&#38534;&#34057;&#30331;&#65292;&#30005;&#24433;&#39636;&#26684;...',
-    'lbl-model':'&#27169;&#22411;','lbl-size':'&#23610;&#23544;',
-    'lbl-apikey-sub':'&#33258;&#35373; Key&#65288;&#36984;&#22635;&#65289;',
-    'apikey-ph':'nb_... &#35206;&#34986;&#38928;&#35373;',
-    'apikey-custom':'&#10003; &#20351;&#29992;&#33258;&#35373; key','apikey-default':'&#20351;&#29992;&#20967;&#35373; key',
-    'lbl-empty-h':'&#23544;&#26410;&#29983;&#25104;&#22294;&#20687;',
-    'lbl-empty-p':'&#22312;&#24038;&#20491;&#36664;&#20837;&#25551;&#36848;&#26292;&#25353;&#29983;&#25104;',
-    'lbl-history-empty':'&#8212; &#27511;&#21490;&#23557;&#36215;&#26371;&#39165;&#29616;&#22312;&#36942;&#35500; &#8212;',
-    'progLbl':'&#27491;&#22312;&#29983;&#25104;...','sending':'&#27491;&#22312;&#36011;&#20986;...',
-    'err-prompt':'&#35531;&#36664;&#20837;&#25551;&#36848;',
-    'err-no-img':'&#38997;&#24212;&#26297;&#22294;&#20687;&#25976;&#25578;',
-    'err-no-url':'&#28961;&#27861;&#35299;&#26512; URL',
-    'ok-gen':'&#22294;&#20687;&#29983;&#25104;&#25104;&#21151;&#65281;',
-    'btn-dl':'&#11015;&#65039; &#19979;&#36617;','btn-copy-url':'&#128203; &#35531;&#21069; URL',
-    'btn-copied':'&#10003; &#24050;&#35531;&#21069;','btn-zoom':'&#128269; &#25918;&#22823;',
-    'poll-times':'&#27425;&#36736;&#35810;','tab-req':'&#128228; &#35531;&#27714;','tab-res':'&#128229; &#38997;&#24212;','tab-poll':'&#128260; &#36736;&#35810;'
+    'lbl-prompt':'提示詞',
+    'lbl-settings':'設定',
+    'lbl-apikey':'API 金鑰',
+    'lbl-debug':'API 除錯',
+    'lbl-genbtn':'&#10024; 生成',
+    'lbl-prompt-hint':'提示詞 <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
+    'prompt-ph':'未來城市的黃昏，霓虹燈，電影風格...',
+    'lbl-model':'模型',
+    'lbl-size':'尺寸',
+    'lbl-apikey-sub':'自訂 Key（選填）',
+    'apikey-ph':'nb_... 覆蓋預設',
+    'apikey-custom':'&#10003; 使用自訂 key',
+    'apikey-default':'使用預設 key',
+    'lbl-empty-h':'尚未生成圖像',
+    'lbl-empty-p':'在左側輸入提示詞後點擊生成',
+    'lbl-history-empty':'&#8212; 歷史紀錄將顯示於此 &#8212;',
+    'progLbl':'正在生成...',
+    'sending':'正在發送請求...',
+    'err-prompt':'請輸入提示詞',
+    'err-no-img':'回應中無圖像資料',
+    'err-no-url':'無法解析 URL',
+    'ok-gen':'圖像生成成功！',
+    'btn-dl':'&#11015;&#65039; 下載',
+    'btn-copy-url':'&#128203; 複製 URL',
+    'btn-copied':'&#10003; 已複製',
+    'btn-zoom':'&#128269; 放大',
+    'poll-times':'次輪詢',
+    'tab-req':'&#128228; 請求',
+    'tab-res':'&#128229; 回應',
+    'tab-poll':'&#128260; 輪詢'
   }
 };
 function tr(k){return T[LANG][k]||T['en'][k]||k;}
@@ -540,7 +551,7 @@ function showPreview(src,prompt){
   document.getElementById('emptyState').style.display='none';
   var pw=document.getElementById('previewWrap');pw.classList.add('show');
   document.getElementById('previewImg').src=src;
-  document.getElementById('previewPrompt').textContent='&#128203; '+prompt;
+  document.getElementById('previewPrompt').textContent='\u{1F4CB} '+prompt;
   var dl=document.getElementById('dlBtn');dl.href=src;dl.download='kio-'+Date.now()+'.png';
   var cpBtn=document.getElementById('cpUrlBtn');
   cpBtn.innerHTML=tr('btn-copy-url');
@@ -567,8 +578,8 @@ document.querySelectorAll('.api-tab').forEach(function(tab){
 function syntaxHL(obj){
   var s=JSON.stringify(obj,null,2);
   return s.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
-    .replace(/("[^"]+")\s*:/g,'<span class="key">$1</span>:')
-    .replace(/:\s*("[^"]*")/g,': <span class="str">$1</span>')
+    .replace(/(\"[^\"]+\")\s*:/g,'<span class="key">$1</span>:')
+    .replace(/:\s*(\"[^\"]*\")/g,': <span class="str">$1</span>')
     .replace(/:\s*(-?\d+\.?\d*)/g,': <span class="num">$1</span>')
     .replace(/:\s*(true|false|null)/g,': <span class="bool">$1</span>');
 }
