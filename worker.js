@@ -422,6 +422,7 @@ var T={
     'err-no-url':'Cannot parse media URL',
     'ok-gen-image':'Image generated!','ok-gen-video':'Video generated!',
     'info-b64-skip':'Preview shown (base64 not saved to history)',
+    'info-b64-mem':'Preview shown; upload timeout, saved as temporary base64 history',
     'btn-dl':'&#11015;&#65039; Download','btn-copy-url':'&#128203; Copy URL',
     'btn-copied':'&#10003; Copied','btn-zoom':'&#128269; Zoom',
     'poll-times':'polls','tab-req':'&#128228; Req','tab-res':'&#128229; Res','tab-poll':'&#128260; Poll',
@@ -449,6 +450,7 @@ var T={
     'ok-gen-image':'\u5716\u50cf\u751f\u6210\u6210\u529f\uff01',
     'ok-gen-video':'\u5f71\u7247\u751f\u6210\u6210\u529f\uff01',
     'info-b64-skip':'\u5df2\u986f\u793a\u9810\u89bd\uff0cbase64 \u4e0d\u5beb\u5165\u6b77\u53f2',
+    'info-b64-mem':'\u5df2\u986f\u793a\u9810\u89bd\uff1b\u4e0a\u50b3\u903e\u6642\uff0c\u5df2\u66ab\u5b58 base64 \u81f3\u8a18\u61b6\u9ad4\u6b77\u53f2',
     'btn-dl':'&#11015;&#65039; \u4e0b\u8f09',
     'btn-copy-url':'&#128203; \u8907\u88fd URL',
     'btn-copied':'&#10003; \u5df2\u8907\u88fd',
@@ -515,6 +517,13 @@ function saveHist(src,prompt,kind){
   catch(e){
     while(hist.length>1){hist.pop();try{localStorage.setItem('kio_h',JSON.stringify(hist));break;}catch(e2){}}
   }
+  activeHistIdx=0;renderHist();
+}
+
+function saveHistB64(src,prompt,kind){
+  if(!src||!src.startsWith('data:'))return;
+  hist.unshift({src:src,prompt:prompt,kind:kind||inferKind(src),ts:Date.now(),temp:true});
+  if(hist.length>10)hist=hist.slice(0,10);
   activeHistIdx=0;renderHist();
 }
 
@@ -733,7 +742,8 @@ async function generate(){
         saveHist(hostedFromB64,prompt,mediaKind);
         showStatus('success',mediaKind==='video'?tr('ok-gen-video'):tr('ok-gen-image'));
       }else{
-        showStatus('info',tr('info-b64-skip'));
+        saveHistB64(mediaSrc,prompt,mediaKind);
+        showStatus('info',tr('info-b64-mem'));
       }
     }else{
       saveHist(mediaSrc,prompt,mediaKind);
@@ -834,8 +844,8 @@ export default {
     const API_KEY  = (USER_KEY && USER_KEY.trim()) ? USER_KEY.trim() : DEFAULT_KEY;
     const MEDIA_UPLOAD_API_KEY = env.MEDIA_UPLOAD_API_KEY || API_KEY;
     const MEDIA_UPLOAD_ANON_KEY = env.MEDIA_UPLOAD_ANON_KEY || SUPA_ANON;
-    const MEDIA_UPLOAD_TIMEOUT_MS = Math.max(3000, Number(env.MEDIA_UPLOAD_TIMEOUT_MS || 25000) || 25000);
-    const MEDIA_UPLOAD_MAX_RETRIES = Math.max(0, Number(env.MEDIA_UPLOAD_MAX_RETRIES || 1) || 1);
+    const MEDIA_UPLOAD_TIMEOUT_MS = Math.max(10000, Number(env.MEDIA_UPLOAD_TIMEOUT_MS || 90000) || 90000);
+    const MEDIA_UPLOAD_MAX_RETRIES = Math.max(0, Number(env.MEDIA_UPLOAD_MAX_RETRIES || 2) || 2);
 
     const json = (d, s = 200) => new Response(JSON.stringify(d), {
       status: s, headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -857,6 +867,7 @@ export default {
     const isRetryableUploadStatus = (status) => status === 429 || status === 502 || status === 503 || status === 504;
 
     async function fetchWithTimeout(resource, init = {}, timeoutMs = MEDIA_UPLOAD_TIMEOUT_MS) {
+      if (!timeoutMs || Number(timeoutMs) <= 0) return fetch(resource, init);
       const controller = new AbortController();
       const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
       try {
@@ -1068,6 +1079,9 @@ export default {
               retryable: !!result.retryable,
               attempts: result.attempts,
               timeout_ms: MEDIA_UPLOAD_TIMEOUT_MS,
+              suggestion: (result.status === 504 || /timeout/i.test(String(upstreamMsg || '')))
+                ? 'increase MEDIA_UPLOAD_TIMEOUT_MS and/or MEDIA_UPLOAD_MAX_RETRIES'
+                : undefined,
               upstream: result.raw,
             }
           }, result.status || 502);
