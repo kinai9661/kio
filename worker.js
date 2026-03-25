@@ -523,9 +523,19 @@ document.addEventListener('DOMContentLoaded',function(){
 var hist=JSON.parse(localStorage.getItem('kio_h')||'[]');
 var activeHistIdx=0;
 function saveHist(src,prompt){
+  /* Skip base64 images - too large for localStorage (5MB limit) */
+  if(src.startsWith('data:'))return;
   hist.unshift({src:src,prompt:prompt,ts:Date.now()});
-  if(hist.length>30)hist=hist.slice(0,30);
-  localStorage.setItem('kio_h',JSON.stringify(hist));
+  if(hist.length>10)hist=hist.slice(0,10);
+  try{
+    localStorage.setItem('kio_h',JSON.stringify(hist));
+  }catch(e){
+    /* quota exceeded: trim oldest entries until it fits */
+    while(hist.length>1){
+      hist.pop();
+      try{localStorage.setItem('kio_h',JSON.stringify(hist));break;}catch(e2){}
+    }
+  }
   activeHistIdx=0;
   renderHist();
 }
