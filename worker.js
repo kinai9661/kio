@@ -93,6 +93,8 @@ textarea#prompt{min-height:110px;resize:vertical;line-height:1.6}
 .size-btn.active{border-color:var(--accent);background:rgba(124,111,255,.14);color:var(--accent)}
 .size-btn .ratio{font-size:.58rem;color:var(--text3);display:block;margin-top:2px}
 .size-btn.active .ratio{color:var(--accent);opacity:.65}
+.mode-tab{transition:all .15s}
+.mode-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .apikey-wrap{position:relative}
 .apikey-wrap input{padding-right:52px;font-family:'SF Mono','Fira Code',monospace;font-size:.75rem}
 .apikey-eye{
@@ -286,6 +288,15 @@ pre.api-code .bool{color:#22c55e}
     </div>
   </div>
 
+  <div class="acc-section open" id="sec-mode">
+    <div class="acc-header" style="padding:0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;width:100%;height:100%">
+        <button class="mode-tab active" data-mode="image" onclick="switchMode('image')" style="flex:1;padding:11px;border:none;background:transparent;color:var(--text2);font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s">📷 Image</button>
+        <button class="mode-tab" data-mode="video" onclick="switchMode('video')" style="flex:1;padding:11px;border:none;background:transparent;color:var(--text2);font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s">🎬 Video</button>
+      </div>
+    </div>
+  </div>
+
   <div class="acc-section open" id="sec-settings">
     <div class="acc-header" onclick="toggleAcc('sec-settings')">
       <span><span class="acc-icon">&#9881;&#65039;</span><span id="lbl-settings">SETTINGS</span></span>
@@ -295,8 +306,7 @@ pre.api-code .bool{color:#22c55e}
       <div class="field">
         <label id="lbl-model">Model</label>
         <select id="model">
-          <option value="gemini-3.1-pro-preview" selected>gemini-3.1-pro-preview</option>
-          <option value="imagen-4">imagen-4</option>
+          <option value="imagen-4" selected>imagen-4</option>
           <option value="veo-3.1">veo-3.1</option>
           <option value="veo-3.1-preview">veo-3.1-preview</option>
         </select>
@@ -400,7 +410,7 @@ var LANG=localStorage.getItem('kio_lang')||'en';
 var T={
   en:{
     'lbl-prompt':'PROMPT','lbl-settings':'SETTINGS','lbl-apikey':'API KEY','lbl-debug':'API DEBUG',
-    'lbl-genbtn':'&#10024; Generate','lbl-model':'Model','lbl-size':'Size',
+    'lbl-genbtn':'&#10024; Generate','lbl-model':'Model','lbl-size':'Size','lbl-mode-image':'📷 Image','lbl-mode-video':'🎬 Video',
     'lbl-apikey-sub':'Custom Key (optional)',
     'lbl-prompt-hint':'Description <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
     'prompt-ph':'A futuristic city at dusk, neon lights, cinematic...',
@@ -423,7 +433,7 @@ var T={
   zh:{
     'lbl-prompt':'\u63d0\u793a\u8a5e','lbl-settings':'\u8a2d\u5b9a','lbl-apikey':'API \u91d1\u9470',
     'lbl-debug':'API \u9664\u932f','lbl-genbtn':'&#10024; \u751f\u6210',
-    'lbl-model':'\u6a21\u578b','lbl-size':'\u5c3a\u5bf8',
+    'lbl-model':'\u6a21\u578b','lbl-size':'\u5c3a\u5bf8','lbl-mode-image':'📷 \u5716\u50cf','lbl-mode-video':'🎬 \u5f71\u7247',
     'lbl-apikey-sub':'\u81ea\u8a02 Key\uff08\u9078\u586b\uff09',
     'lbl-prompt-hint':'\u63d0\u793a\u8a5e <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
     'prompt-ph':'\u672a\u4f86\u57ce\u5e02\u7684\u9ec3\u660f\uff0c\u9713\u8679\u71c8\uff0c\u96fb\u5f71\u98a8\u683c...',
@@ -621,6 +631,21 @@ function showStatus(type,msg){
 }
 
 var selectedSize='1024x1024';
+var currentMode='image';
+function switchMode(mode){
+  currentMode=mode;
+  document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
+  document.querySelector('.mode-tab[data-mode="'+mode+'"]').classList.add('active');
+  var modelSel=document.getElementById('model');
+  if(mode==='image'){
+    modelSel.value='imagen-4';
+    document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
+  }else{
+    modelSel.value='veo-3.1';
+    document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
+  }
+  modelSel.dispatchEvent(new Event('change'));
+}
 document.querySelectorAll('.size-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.size-btn').forEach(function(b){b.classList.remove('active');});
