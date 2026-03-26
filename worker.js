@@ -727,7 +727,7 @@ function setLoad(on,lbl){
 async function generate(){
   var prompt=document.getElementById('prompt').value.trim();
   var model=document.getElementById('model').value;
-  var videoMode=isVideoModel(model);
+  var videoMode=currentMode==='video';
   if(!prompt){showStatus('error',tr('err-prompt'));return;}
   document.getElementById('statusMsg').className='status';
   setLoad(true,videoMode?tr('sending-video'):tr('sending'));
@@ -744,8 +744,11 @@ async function generate(){
       aspect_ratio:document.getElementById('videoAspect').value,
       sound:document.getElementById('videoSound').value
     };
+  }else if(videoMode){
+    reqPath='/v1/videos/generations';
+    reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
   }else{
-    reqPath=videoMode?'/v1/videos/generations':'/v1/images/generations';
+    reqPath='/v1/images/generations';
     reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
   }
   setApiReq(window.location.origin+reqPath,'POST',reqBody);
