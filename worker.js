@@ -843,7 +843,6 @@ export default {
     const USER_KEY = request.headers.get('X-User-Api-Key');
     const API_KEY  = (USER_KEY && USER_KEY.trim()) ? USER_KEY.trim() : DEFAULT_KEY;
     const MEDIA_UPLOAD_API_KEY = env.MEDIA_UPLOAD_API_KEY || API_KEY;
-    const MEDIA_UPLOAD_ANON_KEY = env.MEDIA_UPLOAD_ANON_KEY || SUPA_ANON;
     const MEDIA_UPLOAD_TIMEOUT_MS = Math.max(10000, Number(env.MEDIA_UPLOAD_TIMEOUT_MS || 90000) || 90000);
     const MEDIA_UPLOAD_MAX_RETRIES = Math.max(0, Number(env.MEDIA_UPLOAD_MAX_RETRIES || 2) || 2);
 
@@ -861,7 +860,6 @@ export default {
     });
     const mediaUploadHdr = () => ({
       'Authorization': 'Bearer ' + MEDIA_UPLOAD_API_KEY,
-      'apikey': MEDIA_UPLOAD_ANON_KEY,
     });
 
     const isRetryableUploadStatus = (status) => status === 429 || status === 502 || status === 503 || status === 504;
@@ -997,9 +995,11 @@ export default {
 
     function pickUploadUrl(r) {
       if (!r || typeof r !== 'object') return null;
-      return r.url || r.publicUrl || r.public_url
-        || (r.data && (r.data.url || r.data.publicUrl || r.data.public_url))
-        || null;
+      const direct = r.url || r.publicUrl || r.public_url;
+      const dataObj = (r.data && typeof r.data === 'object') ? r.data : null;
+      const fromData = dataObj && (dataObj.url || dataObj.publicUrl || dataObj.public_url);
+      if (r.success === false) return null;
+      return direct || fromData || null;
     }
 
     function inferExtFromContentType(ct, fallback = 'bin') {
