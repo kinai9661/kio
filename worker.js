@@ -315,14 +315,6 @@ pre.api-code .bool{color:#22c55e}
           <button class="size-btn" data-size="7168x4096">4K L<span class="ratio">7168&#xD7;4096</span></button>
         </div>
       </div>
-      <div class="field">
-        <label id="lbl-upload">Upload Media</label>
-        <input type="file" id="uploadFile" accept="image/*,video/*">
-        <button class="gen-btn" id="uploadBtn" type="button" style="margin-top:6px;">
-          <span class="btn-txt" id="uploadBtnTxt">&#11014;&#65039; Upload</span>
-          <div class="spin"></div>
-        </button>
-      </div>
     </div>
   </div>
 
@@ -426,9 +418,8 @@ var T={
     'btn-dl':'&#11015;&#65039; Download','btn-copy-url':'&#128203; Copy URL',
     'btn-copied':'&#10003; Copied','btn-zoom':'&#128269; Zoom',
     'poll-times':'polls','tab-req':'&#128228; Req','tab-res':'&#128229; Res','tab-poll':'&#128260; Poll',
-    'hist-video':'VIDEO','lbl-upload':'Upload Media','btn-upload':'&#11014;&#65039; Upload',
-    'uploading':'Uploading media...','ok-upload':'Upload successful!','err-file':'Please select a file'
-  },
+    'hist-video':'VIDEO'
+    },
   zh:{
     'lbl-prompt':'\u63d0\u793a\u8a5e','lbl-settings':'\u8a2d\u5b9a','lbl-apikey':'API \u91d1\u9470',
     'lbl-debug':'API \u9664\u932f','lbl-genbtn':'&#10024; \u751f\u6210',
@@ -457,14 +448,13 @@ var T={
     'btn-zoom':'&#128269; \u653e\u5927',
     'poll-times':'\u6b21\u8f2a\u8a62',
     'tab-req':'&#128228; \u8acb\u6c42','tab-res':'&#128229; \u56de\u61c9','tab-poll':'&#128260; \u8f2a\u8a62',
-    'hist-video':'\u5f71\u7247','lbl-upload':'\u4e0a\u50b3\u5a92\u9ad4','btn-upload':'&#11014;&#65039; \u4e0a\u50b3',
-    'uploading':'\u6b63\u5728\u4e0a\u50b3\u5a92\u9ad4...','ok-upload':'\u4e0a\u50b3\u6210\u529f\uff01','err-file':'\u8acb\u5148\u9078\u64c7\u6a94\u6848'
+    'hist-video':'\u5f71\u7247'
   }
 };
 function tr(k){return T[LANG][k]||T.en[k]||k;}
 function applyLang(){
   ['lbl-prompt','lbl-settings','lbl-apikey','lbl-debug','lbl-genbtn','lbl-model','lbl-size',
-   'lbl-apikey-sub','lbl-empty-h','lbl-empty-p','tab-req','tab-res','tab-poll','lbl-upload']
+   'lbl-apikey-sub','lbl-empty-h','lbl-empty-p','tab-req','tab-res','tab-poll']
   .forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tr(id);});
   document.getElementById('lbl-prompt-hint').innerHTML=tr('lbl-prompt-hint');
   document.getElementById('prompt').placeholder=tr('prompt-ph');
@@ -473,8 +463,6 @@ function applyLang(){
   document.getElementById('dlBtn').innerHTML=tr('btn-dl');
   document.getElementById('cpUrlBtn').innerHTML=tr('btn-copy-url');
   document.getElementById('zoomBtn').innerHTML=tr('btn-zoom');
-  var upTxt=document.getElementById('uploadBtnTxt');
-  if(upTxt)upTxt.innerHTML=tr('btn-upload');
   updateKeyStatus();
   renderHist();
 }
@@ -510,20 +498,13 @@ function inferKind(src){
 }
 
 function saveHist(src,prompt,kind){
-  if(!src||src.startsWith('data:'))return;
+  if(!src)return;
   hist.unshift({src:src,prompt:prompt,kind:kind||inferKind(src),ts:Date.now()});
   if(hist.length>10)hist=hist.slice(0,10);
   try{localStorage.setItem('kio_h',JSON.stringify(hist));}
   catch(e){
     while(hist.length>1){hist.pop();try{localStorage.setItem('kio_h',JSON.stringify(hist));break;}catch(e2){}}
   }
-  activeHistIdx=0;renderHist();
-}
-
-function saveHistB64(src,prompt,kind){
-  if(!src||!src.startsWith('data:'))return;
-  hist.unshift({src:src,prompt:prompt,kind:kind||inferKind(src),ts:Date.now(),temp:true});
-  if(hist.length>10)hist=hist.slice(0,10);
   activeHistIdx=0;renderHist();
 }
 
@@ -654,48 +635,9 @@ document.getElementById('model').addEventListener('change',function(){
 });
 
 var genBtn=document.getElementById('genBtn');
-var uploadBtn=document.getElementById('uploadBtn');
 function setLoad(on,lbl){
   genBtn.disabled=on;genBtn.classList.toggle('loading',on);
   if(on)startProg(lbl||tr('sending'));else endProg();
-}
-function setUploadLoad(on){
-  if(!uploadBtn)return;
-  uploadBtn.disabled=on;
-  uploadBtn.classList.toggle('loading',on);
-}
-
-function extFromMime(mime){
-  var m=String(mime||'').toLowerCase();
-  if(m.indexOf('image/png')===0)return'png';
-  if(m.indexOf('image/jpeg')===0)return'jpg';
-  if(m.indexOf('image/webp')===0)return'webp';
-  if(m.indexOf('image/gif')===0)return'gif';
-  if(m.indexOf('video/mp4')===0)return'mp4';
-  if(m.indexOf('video/webm')===0)return'webm';
-  return'bin';
-}
-
-async function uploadDataUrlToHistory(dataUrl,kind){
-  if(!dataUrl||!String(dataUrl).startsWith('data:'))return null;
-  try{
-    var dataRes=await fetch(dataUrl);
-    if(!dataRes.ok)return null;
-    var blob=await dataRes.blob();
-    var mime=blob.type||'';
-    var ext=extFromMime(mime);
-    var headers={};
-    if(customKey)headers['X-User-Api-Key']=customKey;
-    var formData=new FormData();
-    var fileName=(kind==='video'?'kio-video-':'kio-image-')+Date.now()+'.'+ext;
-    formData.append('file',blob,fileName);
-    var upRes=await fetch('/v1/media/upload',{method:'POST',headers:headers,body:formData});
-    var upData=await upRes.json().catch(function(){return{};});
-    if(!upRes.ok)return null;
-    return (upData&&upData.url)||null;
-  }catch(e){
-    return null;
-  }
 }
 
 async function generate(){
@@ -736,77 +678,16 @@ async function generate(){
     var mediaKind=videoSrc?'video':(imageSrc?inferKind(imageSrc):(videoMode?'video':'image'));
     if(!mediaSrc){showStatus('error',tr('err-no-url'));setLoad(false);return;}
     showPreview(mediaSrc,prompt,mediaKind);
-    if(mediaSrc.startsWith('data:')){
-      var hostedFromB64=await uploadDataUrlToHistory(mediaSrc,mediaKind);
-      if(hostedFromB64){
-        saveHist(hostedFromB64,prompt,mediaKind);
-        showStatus('success',mediaKind==='video'?tr('ok-gen-video'):tr('ok-gen-image'));
-      }else{
-        saveHistB64(mediaSrc,prompt,mediaKind);
-        showStatus('info',tr('info-b64-mem'));
-      }
-    }else{
-      saveHist(mediaSrc,prompt,mediaKind);
-      if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
-      else showStatus('success',tr('ok-gen-image'));
-    }
+    saveHist(mediaSrc,prompt,mediaKind);
+    if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
+    else showStatus('success',tr('ok-gen-image'));
   }catch(err){
     document.getElementById('apiDot').className='api-dot err';
     showStatus('error',err.message||String(err));
   }
   setLoad(false);
 }
-async function uploadMedia(){
-  var fileInput=document.getElementById('uploadFile');
-  var file=fileInput&&fileInput.files?fileInput.files[0]:null;
-  if(!file){showStatus('error',tr('err-file'));return;}
-
-  document.getElementById('statusMsg').className='status';
-  setUploadLoad(true);
-  startProg(tr('uploading'));
-
-  var headers={};
-  if(customKey)headers['X-User-Api-Key']=customKey;
-  var reqPath='/v1/media/upload';
-  var reqMeta={filename:file.name,size:file.size,type:file.type||'application/octet-stream'};
-  setApiReq(window.location.origin+reqPath,'POST',reqMeta);
-  var t0=Date.now();
-
-  try{
-    var formData=new FormData();
-    formData.append('file',file,file.name||('upload-'+Date.now()));
-    var res=await fetch(reqPath,{method:'POST',headers:headers,body:formData});
-    var ms=Date.now()-t0;
-    var data=await res.json().catch(function(){return{};});
-    setApiRes(res.status,data,ms);
-
-    document.querySelectorAll('.api-tab').forEach(function(t){t.classList.remove('active');});
-    document.getElementById('tab-res').classList.add('active');
-    activeTab='res';
-    document.getElementById('tabReq').style.display='none';
-    document.getElementById('tabRes').style.display='block';
-    document.getElementById('tabPoll').style.display='none';
-
-    if(!res.ok)throw new Error((data&&data.error&&data.error.message)||'HTTP '+res.status);
-    var hostedUrl=(data&&data.url)||null;
-    if(!hostedUrl)throw new Error(tr('err-no-url'));
-
-    var mediaKind=(file.type||'').startsWith('video/')?'video':'image';
-    showPreview(hostedUrl,file.name||'upload',mediaKind);
-    saveHist(hostedUrl,file.name||'upload',mediaKind);
-    showStatus('success',tr('ok-upload'));
-    fileInput.value='';
-  }catch(err){
-    document.getElementById('apiDot').className='api-dot err';
-    showStatus('error',err.message||String(err));
-  }finally{
-    setUploadLoad(false);
-    endProg();
-  }
-}
-
 genBtn.onclick=generate;
-if(uploadBtn)uploadBtn.onclick=uploadMedia;
 document.getElementById('prompt').addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}
 });
@@ -836,15 +717,11 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
 
     const SUPABASE_URL = 'https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1';
-    const MEDIA_UPLOAD_URL = env.MEDIA_UPLOAD_URL || 'https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload';
     const DEFAULT_KEY  = env.MEDO_API_KEY || 'nb_SBa89oD7xBbHSrwJKny3acDF6kRFuPBNgF2BEEDTdnRGMyBe';
     const SUPA_ANON    = env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E';
 
     const USER_KEY = request.headers.get('X-User-Api-Key');
     const API_KEY  = (USER_KEY && USER_KEY.trim()) ? USER_KEY.trim() : DEFAULT_KEY;
-    const MEDIA_UPLOAD_API_KEY = env.MEDIA_UPLOAD_API_KEY || API_KEY;
-    const MEDIA_UPLOAD_TIMEOUT_MS = Math.max(10000, Number(env.MEDIA_UPLOAD_TIMEOUT_MS || 90000) || 90000);
-    const MEDIA_UPLOAD_MAX_RETRIES = Math.max(0, Number(env.MEDIA_UPLOAD_MAX_RETRIES || 2) || 2);
 
     const json = (d, s = 200) => new Response(JSON.stringify(d), {
       status: s, headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -858,93 +735,6 @@ export default {
       'Authorization': 'Bearer ' + API_KEY,
       'apikey': SUPA_ANON,
     });
-    const mediaUploadHdr = () => ({
-      'Authorization': 'Bearer ' + MEDIA_UPLOAD_API_KEY,
-    });
-
-    const isRetryableUploadStatus = (status) => status === 429 || status === 502 || status === 503 || status === 504;
-
-    async function fetchWithTimeout(resource, init = {}, timeoutMs = MEDIA_UPLOAD_TIMEOUT_MS) {
-      if (!timeoutMs || Number(timeoutMs) <= 0) return fetch(resource, init);
-      const controller = new AbortController();
-      const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
-      try {
-        return await fetch(resource, { ...init, signal: controller.signal });
-      } finally {
-        clearTimeout(timer);
-      }
-    }
-
-    async function uploadToMediaHost(buildFormData) {
-      let lastResult = null;
-      for (let i = 0; i <= MEDIA_UPLOAD_MAX_RETRIES; i++) {
-        try {
-          const upstream = await fetchWithTimeout(MEDIA_UPLOAD_URL, {
-            method: 'POST',
-            headers: mediaUploadHdr(),
-            body: buildFormData(),
-          });
-
-          const rawText = await upstream.text();
-          let raw;
-          try {
-            raw = JSON.parse(rawText);
-          } catch {
-            raw = { raw: rawText };
-          }
-
-          if (upstream.ok) {
-            return {
-              ok: true,
-              status: upstream.status,
-              statusText: upstream.statusText,
-              raw,
-              retryable: false,
-              attempts: i + 1,
-            };
-          }
-
-          const retryable = isRetryableUploadStatus(upstream.status);
-          lastResult = {
-            ok: false,
-            status: upstream.status,
-            statusText: upstream.statusText,
-            raw,
-            retryable,
-            attempts: i + 1,
-          };
-
-          if (!retryable || i >= MEDIA_UPLOAD_MAX_RETRIES) return lastResult;
-        } catch (e) {
-          const msg = (e && e.message) ? e.message : String(e || 'unknown upload error');
-          const lower = String(msg).toLowerCase();
-          const isTimeout = (e && e.name === 'AbortError') || lower.includes('abort') || lower.includes('timeout');
-
-          lastResult = {
-            ok: false,
-            status: isTimeout ? 504 : 0,
-            statusText: isTimeout ? 'Gateway Timeout' : 'FetchError',
-            raw: { message: msg },
-            retryable: true,
-            attempts: i + 1,
-          };
-
-          if (i >= MEDIA_UPLOAD_MAX_RETRIES) return lastResult;
-        }
-
-        await new Promise(r => setTimeout(r, 400 * (i + 1)));
-      }
-
-      return lastResult || {
-        ok: false,
-        status: 0,
-        statusText: 'Unknown',
-        raw: { message: 'unknown upload error' },
-        retryable: false,
-        attempts: 1,
-      };
-    }
-
     const isVideoModel = (m) => /(^|-)veo/i.test(String(m || '')) || String(m || '').includes('veo');
 
     async function submitTask(body) {
@@ -993,51 +783,6 @@ export default {
 
     function extractB64(r) { return r.b64_json || r.base64 || (r.result && r.result.b64_json) || null; }
 
-    function pickUploadUrl(r) {
-      if (!r || typeof r !== 'object') return null;
-      const direct = r.url || r.publicUrl || r.public_url;
-      const dataObj = (r.data && typeof r.data === 'object') ? r.data : null;
-      const fromData = dataObj && (dataObj.url || dataObj.publicUrl || dataObj.public_url);
-      if (r.success === false) return null;
-      return direct || fromData || null;
-    }
-
-    function inferExtFromContentType(ct, fallback = 'bin') {
-      const t = String(ct || '').toLowerCase();
-      if (t.includes('image/png')) return 'png';
-      if (t.includes('image/jpeg') || t.includes('image/jpg')) return 'jpg';
-      if (t.includes('image/webp')) return 'webp';
-      if (t.includes('image/gif')) return 'gif';
-      if (t.includes('video/mp4')) return 'mp4';
-      if (t.includes('video/webm')) return 'webm';
-      if (t.includes('video/quicktime')) return 'mov';
-      return fallback;
-    }
-
-    async function uploadRemoteMedia(mediaUrl, fallbackExt = 'bin') {
-      if (!mediaUrl || String(mediaUrl).startsWith('data:')) return mediaUrl;
-      try {
-        const source = await fetchWithTimeout(mediaUrl, {}, MEDIA_UPLOAD_TIMEOUT_MS);
-        if (!source.ok) return mediaUrl;
-
-        const ctype = source.headers.get('content-type') || '';
-        const ext = inferExtFromContentType(ctype, fallbackExt);
-        const blob = await source.blob();
-        const isVideo = String(ctype).toLowerCase().startsWith('video/');
-        const fileName = (isVideo ? 'kio-video-' : 'kio-image-') + Date.now() + '.' + ext;
-
-        const result = await uploadToMediaHost(() => {
-          const formData = new FormData();
-          formData.append('file', blob, fileName);
-          return formData;
-        });
-
-        if (!result.ok) return mediaUrl;
-        return pickUploadUrl(result.raw) || mediaUrl;
-      } catch (e) {
-        return mediaUrl;
-      }
-    }
 
     try {
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
@@ -1054,41 +799,6 @@ export default {
           { id: 'veo-3.1-preview',       object: 'model', owned_by: 'google' },
         ]});
 
-      if (request.method === 'POST' && url.pathname === '/v1/media/upload') {
-        const incoming = await request.formData();
-        const file = incoming.get('file');
-        if (!file || typeof file === 'string') {
-          return json({ error: { message: 'file is required' } }, 400);
-        }
-
-        const result = await uploadToMediaHost(() => {
-          const formData = new FormData();
-          formData.append('file', file, file.name || ('upload-' + Date.now()));
-          return formData;
-        });
-
-        if (!result.ok) {
-          const upstreamMsg = (result.raw && typeof result.raw === 'object' && (
-            (result.raw.error && result.raw.error.message) || result.raw.message || result.raw.raw
-          )) || ('HTTP ' + result.status + ' ' + result.statusText);
-          return json({
-            error: {
-              message: 'media upload failed: ' + upstreamMsg,
-              status: result.status,
-              statusText: result.statusText,
-              retryable: !!result.retryable,
-              attempts: result.attempts,
-              timeout_ms: MEDIA_UPLOAD_TIMEOUT_MS,
-              suggestion: (result.status === 504 || /timeout/i.test(String(upstreamMsg || '')))
-                ? 'increase MEDIA_UPLOAD_TIMEOUT_MS and/or MEDIA_UPLOAD_MAX_RETRIES'
-                : undefined,
-              upstream: result.raw,
-            }
-          }, result.status || 502);
-        }
-
-        return json({ url: pickUploadUrl(result.raw), data: result.raw, attempts: result.attempts });
-      }
 
       if (
         request.method === 'POST' && (
@@ -1119,8 +829,6 @@ export default {
         let syncImg   = extractImg(submitResp);
         const syncB64 = extractB64(submitResp);
         if (syncVideo || syncImg || syncB64) {
-          if (syncVideo) syncVideo = await uploadRemoteMedia(syncVideo, 'mp4');
-          if (syncImg) syncImg = await uploadRemoteMedia(syncImg, 'png');
           return json({
             created: Math.floor(Date.now() / 1000),
             _debug: { request: requestInfo, submit_ms: submitMs, mode: 'sync' },
@@ -1151,8 +859,6 @@ export default {
         let videoUrl = extractVideo(pollData);
         let imgUrl   = extractImg(pollData);
         const b64    = extractB64(pollData);
-        if (videoUrl) videoUrl = await uploadRemoteMedia(videoUrl, 'mp4');
-        if (imgUrl) imgUrl = await uploadRemoteMedia(imgUrl, 'png');
 
         return json({
           created: Math.floor(Date.now() / 1000),

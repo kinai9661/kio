@@ -4,15 +4,6 @@ compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
 [vars]
-# 媒體上傳代理目標（可保留預設，或改成你自己的 Supabase Function）
-MEDIA_UPLOAD_URL = "https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload"
-
-# 可選：媒體上傳用金鑰（未設定則 fallback 使用 API_KEY）
-# MEDIA_UPLOAD_API_KEY = "your_upload_api_key"
-
-# 可選：媒體上傳用 apikey（若上游需要，可填 Supabase anon key）
-# MEDIA_UPLOAD_ANON_KEY = "your_supabase_anon_key"
-
 # 可選：覆蓋 OpenAI Base URL 以使用 Cloudflare AI Gateway
 # OPENAI_BASE_URL = "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai"
 

@@ -1,9 +1,8 @@
-# KIO Gateway - Image/Video Generation + Media Hosting
+# KIO Gateway - Image/Video Generation
 
 基於 Cloudflare Workers 的 OpenAI-compatible API Gateway，整合：
 - 圖像生成
 - 影片生成
-- 媒體托管（上傳代理）
 - 內建 Web UI（含歷史紀錄 / API Debug / i18n）
 
 ---
@@ -13,9 +12,8 @@
 - ✅ OpenAI-compatible 請求介面
 - ✅ 圖像生成：`/v1/images/generations`
 - ✅ 影片生成：`/v1/videos/generations`
-- ✅ 媒體上傳代理：`/v1/media/upload`
-- ✅ 自動托管：生成結果 URL 會再轉存到媒體托管端
 - ✅ 內建 UI：多語系（EN / ZH）、預覽、下載、歷史、Debug 面板
+- ✅ 本地歷史：圖片/影片 URL 與 base64 均保存至瀏覽器 localStorage
 
 ---
 
@@ -40,9 +38,6 @@
 - `POST /v1/images/generate`
 - `POST /v1/videos/generations`
 - `POST /v1/videos/generate`
-
-### 媒體上傳
-- `POST /v1/media/upload`
 
 ---
 
@@ -76,22 +71,6 @@ curl -X POST https://<your-worker>.workers.dev/v1/videos/generations \
   }'
 ```
 
-### 3) 媒體上傳（透過 Worker 代理）
-
-```bash
-curl -X POST https://<your-worker>.workers.dev/v1/media/upload \
-  -H "X-User-Api-Key: YOUR_API_KEY" \
-  -F "file=@/path/to/image.jpg"
-```
-
-### 4) 直接上傳到 Supabase Function
-
-```bash
-curl -X POST https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload \
-  -H "Authorization: Bearer YOUR_API_KEY" \
-  -F "file=@/path/to/image.jpg"
-```
-
 ---
 
 ## 環境變數
@@ -101,18 +80,6 @@ curl -X POST https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload \
 ### 必要（建議使用 `wrangler secret`）
 - `MEDO_API_KEY`
 - `SUPABASE_ANON_KEY`
-
-### 可選
-- `MEDIA_UPLOAD_URL`
-  - 若未設定，會 fallback 到預設：
-    `https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload`
-
-`wrangler.toml` 範例：
-
-```toml
-[vars]
-MEDIA_UPLOAD_URL = "https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload"
-```
 
 ---
 
@@ -133,6 +100,6 @@ npx wrangler deploy
 
 ## 備註
 
-- 歷史紀錄僅保存可用 URL（不保存 `data:` base64）
+- 歷史紀錄保存至瀏覽器 localStorage（包含 URL 與 base64 資料）
 - `X-User-Api-Key` 會覆蓋預設 key
 - 如需更嚴格安全策略，建議限制 CORS 與移除硬編碼 fallback
