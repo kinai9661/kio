@@ -414,12 +414,11 @@ var T={
     'err-no-url':'Cannot parse media URL',
     'ok-gen-image':'Image generated!','ok-gen-video':'Video generated!',
     'info-b64-skip':'Preview shown (base64 not saved to history)',
-    'info-b64-mem':'Preview shown; upload timeout, saved as temporary base64 history',
     'btn-dl':'&#11015;&#65039; Download','btn-copy-url':'&#128203; Copy URL',
     'btn-copied':'&#10003; Copied','btn-zoom':'&#128269; Zoom',
     'poll-times':'polls','tab-req':'&#128228; Req','tab-res':'&#128229; Res','tab-poll':'&#128260; Poll',
     'hist-video':'VIDEO'
-    },
+  },
   zh:{
     'lbl-prompt':'\u63d0\u793a\u8a5e','lbl-settings':'\u8a2d\u5b9a','lbl-apikey':'API \u91d1\u9470',
     'lbl-debug':'API \u9664\u932f','lbl-genbtn':'&#10024; \u751f\u6210',
@@ -441,7 +440,6 @@ var T={
     'ok-gen-image':'\u5716\u50cf\u751f\u6210\u6210\u529f\uff01',
     'ok-gen-video':'\u5f71\u7247\u751f\u6210\u6210\u529f\uff01',
     'info-b64-skip':'\u5df2\u986f\u793a\u9810\u89bd\uff0cbase64 \u4e0d\u5beb\u5165\u6b77\u53f2',
-    'info-b64-mem':'\u5df2\u986f\u793a\u9810\u89bd\uff1b\u4e0a\u50b3\u903e\u6642\uff0c\u5df2\u66ab\u5b58 base64 \u81f3\u8a18\u61b6\u9ad4\u6b77\u53f2',
     'btn-dl':'&#11015;&#65039; \u4e0b\u8f09',
     'btn-copy-url':'&#128203; \u8907\u88fd URL',
     'btn-copied':'&#10003; \u5df2\u8907\u88fd',
@@ -498,7 +496,7 @@ function inferKind(src){
 }
 
 function saveHist(src,prompt,kind){
-  if(!src)return;
+  if(!src||src.startsWith('data:'))return;
   hist.unshift({src:src,prompt:prompt,kind:kind||inferKind(src),ts:Date.now()});
   if(hist.length>10)hist=hist.slice(0,10);
   try{localStorage.setItem('kio_h',JSON.stringify(hist));}
@@ -667,10 +665,31 @@ async function generate(){
     document.getElementById('tabRes').style.display='block';
     document.getElementById('tabPoll').style.display='none';
     if(!res.ok)throw new Error((data&&data.error&&data.error.message)||'HTTP '+res.status);
+
     var item=data&&data.data&&data.data[0];
-    if(item&&(item.task_id||item._poll_attempts)){
-      setApiPoll(item._poll_attempts||'?',item.task_id||'-',item._poll_status||'completed',item);
+    if (res.status === 202 && item && item.task_id) {
+      var taskId = item.task_id;
+      var pollAttempts = 0;
+      var maxPolls = 60;
+      while (pollAttempts < maxPolls) {
+        pollAttempts++;
+        await new Promise(function(r){ setTimeout(r, 5000); });
+        document.getElementById('progLbl').textContent = tr('progLbl') + ' (' + pollAttempts + ')';
+        
+        var pRes = await fetch('/v1/tasks/' + taskId, { headers: headers });
+        var pData = await pRes.json();
+        var st = pData.status || pData.state;
+        setApiPoll(pollAttempts, taskId, st || 'polling', pData);
+        
+        if (st === 'completed' || st === 'done' || st === 'success') {
+          item = pData.data[0];
+          break;
+        }
+        if (st === 'failed' || st === 'error') throw new Error(pData.error || 'Task failed');
+        if (pollAttempts >= maxPolls) throw new Error('Polling timeout');
+      }
     }
+
     if(!item)throw new Error(tr('err-no-media'));
     var videoSrc=item.video_url||null;
     var imageSrc=item.url||(item.b64_json?'data:image/png;base64,'+item.b64_json:null);
@@ -680,6 +699,7 @@ async function generate(){
     showPreview(mediaSrc,prompt,mediaKind);
     saveHist(mediaSrc,prompt,mediaKind);
     if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
+    else if(mediaSrc.startsWith('data:'))showStatus('info',tr('info-b64-skip'));
     else showStatus('success',tr('ok-gen-image'));
   }catch(err){
     document.getElementById('apiDot').className='api-dot err';
@@ -735,6 +755,7 @@ export default {
       'Authorization': 'Bearer ' + API_KEY,
       'apikey': SUPA_ANON,
     });
+
     const isVideoModel = (m) => /(^|-)veo/i.test(String(m || '')) || String(m || '').includes('veo');
 
     async function submitTask(body) {
@@ -783,13 +804,32 @@ export default {
 
     function extractB64(r) { return r.b64_json || r.base64 || (r.result && r.result.b64_json) || null; }
 
-
     try {
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
         return new Response(HTML_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
 
       if (request.method === 'GET' && url.pathname === '/health')
-        return json({ status: 'ok', version: '5.1.0', ui: 'split-canvas', features: ['image','video','i18n','custom-key','history-guard'] });
+        return json({ status: 'ok', version: '5.1.0', ui: 'split-canvas', features: ['image','video','i18n','custom-key','history-guard','polling'] });
+
+      if (request.method === 'GET' && url.pathname.startsWith('/v1/tasks/')) {
+        const taskId = url.pathname.split('/v1/tasks/')[1];
+        if (!taskId) return json({ error: { message: 'task_id is required' } }, 400);
+        const r = await fetch(SUPABASE_URL + '/get-task-result?task_id=' + encodeURIComponent(taskId), { headers: pollHdr() });
+        const d = await r.json();
+        const st = d.status || d.state || d.task_status;
+        const videoUrl = extractVideo(d);
+        const imgUrl   = extractImg(d);
+        const b64      = extractB64(d);
+        return json({
+          status: st,
+          data: [{
+            ...(videoUrl ? { video_url: videoUrl } : {}),
+            ...(imgUrl   ? { url: imgUrl }          : {}),
+            ...(b64      ? { b64_json: b64 }        : {}),
+            revised_prompt: d.revised_prompt || d.enhanced_prompt || d.prompt,
+          }]
+        }, r.status);
+      }
 
       if (request.method === 'GET' && url.pathname === '/v1/models')
         return json({ object: 'list', data: [
@@ -798,7 +838,6 @@ export default {
           { id: 'veo-3.1',               object: 'model', owned_by: 'google' },
           { id: 'veo-3.1-preview',       object: 'model', owned_by: 'google' },
         ]});
-
 
       if (
         request.method === 'POST' && (
@@ -825,9 +864,9 @@ export default {
         const submitResp = await submitTask({ prompt, model, n, size, quality, style, response_format, ...extra });
         const submitMs = Date.now() - t0;
 
-        let syncVideo = extractVideo(submitResp);
-        let syncImg   = extractImg(submitResp);
-        const syncB64 = extractB64(submitResp);
+        const syncVideo = extractVideo(submitResp);
+        const syncImg   = extractImg(submitResp);
+        const syncB64   = extractB64(submitResp);
         if (syncVideo || syncImg || syncB64) {
           return json({
             created: Math.floor(Date.now() / 1000),
@@ -854,24 +893,12 @@ export default {
           });
         }
 
-        const { data: pollData, attempts, status: pollStatus } = await pollUntilDone(taskId);
-        const totalMs = Date.now() - t0;
-        let videoUrl = extractVideo(pollData);
-        let imgUrl   = extractImg(pollData);
-        const b64    = extractB64(pollData);
-
         return json({
           created: Math.floor(Date.now() / 1000),
-          _debug: { request: requestInfo, submit_ms: submitMs, total_ms: totalMs,
-            mode: 'async', task_id: taskId, poll_attempts: attempts, poll_status: pollStatus },
-          data: [{
-            ...(videoUrl ? { video_url: videoUrl } : {}),
-            ...(imgUrl   ? { url: imgUrl }          : {}),
-            ...(b64      ? { b64_json: b64 }        : {}),
-            revised_prompt: pollData.revised_prompt || pollData.enhanced_prompt || prompt,
-            task_id: taskId, _poll_attempts: attempts, _poll_status: pollStatus,
-          }],
-        });
+          status: 'accepted',
+          _debug: { request: requestInfo, submit_ms: submitMs, mode: 'async', task_id: taskId },
+          data: [{ task_id: taskId }]
+        }, 202);
       }
 
       return json({ error: { message: 'Not found: ' + request.method + ' ' + url.pathname }, ui: '/' }, 404);
