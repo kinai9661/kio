@@ -3,7 +3,270 @@
  * Left sidebar + Right preview + Bottom history strip
  */
 
-const HTML_UI = `<!DOCTYPE html>
+const VIDEO_UI = `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1.0">
+<title>KIO Gateway - Video Generation</title>
+<style>
+:root{
+  --bg:#0c0c10;--surface:#141418;--surface2:#1c1c23;--surface3:#22222d;
+  --border:#2a2a38;--accent:#7c6fff;--accent2:#00d2ff;
+  --text:#e2e2ef;--text2:#8c8ca3;--text3:#57576d;
+  --success:#22c55e;--error:#ef4444;--warn:#f59e0b;
+  --sidebar:280px;--radius:10px;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;overflow:hidden}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
+.topbar{height:46px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:10;}
+.topbar-logo{display:flex;align-items:center;gap:8px}
+.logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:13px;}
+.logo-title{font-size:.92rem;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
+.topbar-spacer{flex:1}
+.topbar-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.7rem;font-weight:700;padding:4px 10px;cursor:pointer;transition:all .15s;}
+.topbar-btn:hover{border-color:var(--accent);color:var(--accent)}
+.body-wrap{display:flex;flex:1;overflow:hidden}
+.sidebar{width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
+.acc-section{border-bottom:1px solid var(--border)}
+.acc-header{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer;user-select:none;font-size:.7rem;font-weight:700;letter-spacing:.08em;color:var(--text2);text-transform:uppercase;transition:color .15s;}
+.acc-header:hover{color:var(--text)}
+.acc-arrow{font-size:.6rem;transition:transform .2s;color:var(--text3)}
+.acc-section.open .acc-arrow{transform:rotate(180deg)}
+.acc-body{display:none;padding:10px 14px 14px}
+.acc-section.open .acc-body{display:block}
+.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
+.field label{font-size:.72rem;color:var(--text2);font-weight:500}
+input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.82rem;padding:7px 10px;width:100%;outline:none;transition:border-color .2s;font-family:inherit;}
+input:focus,select:focus,textarea:focus{border-color:var(--accent)}
+select option{background:var(--surface2)}
+textarea#prompt{min-height:110px;resize:vertical;line-height:1.6}
+.size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.size-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.66rem;font-weight:600;padding:6px 2px;cursor:pointer;text-align:center;transition:all .15s;line-height:1.35;}
+.size-btn:hover{border-color:var(--accent);color:var(--text)}
+.size-btn.active{border-color:var(--accent);background:rgba(124,111,255,.14);color:var(--accent)}
+.size-btn .ratio{font-size:.58rem;color:var(--text3);display:block;margin-top:2px}
+.size-btn.active .ratio{color:var(--accent);opacity:.65}
+.gen-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius);color:#fff;font-size:.88rem;font-weight:700;padding:11px;cursor:pointer;width:100%;transition:opacity .2s,transform .15s;display:flex;align-items:center;justify-content:center;gap:7px;}
+.gen-btn:hover{opacity:.88;transform:translateY(-1px)}
+.gen-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
+.gen-btn .spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none;}
+.gen-btn.loading .spin{display:block}
+.gen-btn.loading .btn-txt{display:none}
+@keyframes spin{to{transform:rotate(360deg)}}
+.status{display:none;padding:7px 10px;border-radius:7px;font-size:.75rem;margin-top:6px}
+.status.error{display:flex;gap:5px;background:rgba(239,68,68,.1);color:var(--error);border:1px solid rgba(239,68,68,.18)}
+.status.success{display:flex;gap:5px;background:rgba(34,197,94,.08);color:var(--success);border:1px solid rgba(34,197,94,.18)}
+.canvas{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
+.canvas-preview{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;padding:24px;}
+.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text3);text-align:center;}
+.empty-icon{font-size:4rem;opacity:.15}
+.empty-h{font-size:.95rem;font-weight:600;color:var(--text2)}
+.empty-p{font-size:.75rem;max-width:240px;line-height:1.6}
+.preview-wrap{display:none;width:100%;height:100%;position:relative;flex-direction:column;align-items:center;justify-content:center;}
+.preview-wrap.show{display:flex}
+.preview-video{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);animation:fadeIn .4s ease;background:#000}
+@keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
+.preview-actions{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(12,12,16,.85);border:1px solid var(--border);border-radius:99px;padding:6px 12px;backdrop-filter:blur(8px);flex-wrap:wrap;justify-content:center;}
+.preview-prompt{position:absolute;top:12px;left:12px;right:12px;background:rgba(12,12,16,.8);border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:.72rem;color:var(--text2);line-height:1.5;backdrop-filter:blur(6px);max-height:76px;overflow:hidden;}
+.act-btn{padding:5px 12px;border-radius:99px;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
+.act-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
+.act-btn.ghost{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}
+.act-btn:hover{opacity:.82}
+.hist-strip{height:96px;flex-shrink:0;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 14px;gap:10px;overflow-x:auto;}
+.hist-empty{font-size:.7rem;color:var(--text3);white-space:nowrap;margin:auto}
+.hist-thumb{width:70px;height:70px;flex-shrink:0;border-radius:7px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s,transform .15s;position:relative;background:var(--surface2);display:flex;align-items:center;justify-content:center;}
+.hist-thumb:hover{border-color:var(--accent);transform:scale(1.06)}
+.hist-thumb.active{border-color:var(--accent2)}
+.hist-thumb img{width:100%;height:100%;object-fit:cover;display:block}
+.hist-video{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1f2937,#111827);color:#cbd5e1;font-size:1.3rem;}
+.hist-tag{position:absolute;right:4px;bottom:4px;font-size:.55rem;font-weight:700;background:rgba(0,0,0,.65);padding:2px 5px;border-radius:99px;color:#fff;}
+.hist-ov{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .15s;display:flex;align-items:center;justify-content:center;font-size:.9rem;}
+.hist-thumb:hover .hist-ov{opacity:1}
+.lightbox{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);align-items:center;justify-content:center;}
+.lightbox.show{display:flex}
+.lightbox video{max-width:94vw;max-height:94vh;border-radius:10px}
+.lb-close{position:fixed;top:14px;right:18px;background:rgba(255,255,255,.1);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
+</style>
+</head>
+<body>
+<div class="topbar">
+  <a href="/" style="text-decoration:none;color:var(--text2);font-size:.7rem;font-weight:700;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">← Back</a>
+  <div class="topbar-spacer"></div>
+  <span style="font-size:.7rem;color:var(--text2);">🎬 Video Generation</span>
+</div>
+<div class="body-wrap">
+<aside class="sidebar">
+  <div class="acc-section open">
+    <div class="acc-header" onclick="toggleAcc('sec-prompt')">
+      <span><span style="margin-right:7px">📝</span>PROMPT</span>
+      <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <div class="field">
+        <label>Description</label>
+        <textarea id="prompt" placeholder="A robot walking in rainy cyberpunk street..."></textarea>
+      </div>
+      <div style="margin-bottom:8px;display:none" id="progWrap">
+        <div style="font-size:.68rem;color:var(--text2);margin-bottom:4px" id="progLbl">Generating...</div>
+        <div style="height:2px;background:var(--border);border-radius:99px;overflow:hidden"><div id="progFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease"></div></div>
+      </div>
+      <button class="gen-btn" id="genBtn">
+        <span class="btn-txt">✨ Generate</span>
+        <div class="spin"></div>
+      </button>
+      <div class="status" id="statusMsg"></div>
+    </div>
+  </div>
+  <div class="acc-section open">
+    <div class="acc-header" onclick="toggleAcc('sec-settings')">
+      <span><span style="margin-right:7px">⚙️</span>SETTINGS</span>
+      <span class="acc-arrow">▼</span>
+    </div>
+    <div class="acc-body">
+      <div class="field">
+        <label>Video Mode</label>
+        <select id="videoMode">
+          <option value="standard">Standard (veo-3.1)</option>
+          <option value="pro" selected>Pro (kling-v3-omni)</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Duration (seconds)</label>
+        <select id="videoDuration">
+          <option value="5">5s</option>
+          <option value="10" selected>10s</option>
+          <option value="15">15s</option>
+        </select>
+      </div>
+      <div class="field">
+        <label>Aspect Ratio</label>
+        <div class="size-grid" id="aspectGrid">
+          <button class="size-btn active" data-aspect="16:9">16:9<span class="ratio">Landscape</span></button>
+          <button class="size-btn" data-aspect="9:16">9:16<span class="ratio">Portrait</span></button>
+          <button class="size-btn" data-aspect="1:1">1:1<span class="ratio">Square</span></button>
+          <button class="size-btn" data-aspect="4:3">4:3<span class="ratio">Classic</span></button>
+          <button class="size-btn" data-aspect="3:4">3:4<span class="ratio">Photo</span></button>
+          <button class="size-btn" data-aspect="21:9">21:9<span class="ratio">Cinema</span></button>
+        </div>
+        <input type="hidden" id="videoAspect" value="16:9">
+      </div>
+      <div class="field">
+        <label>Sound</label>
+        <select id="videoSound">
+          <option value="on" selected>On</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
+    </div>
+  </div>
+</aside>
+<div class="canvas">
+  <div class="canvas-preview" id="canvasPreview">
+    <div class="empty-state" id="emptyState">
+      <div class="empty-icon">🎬</div>
+      <div class="empty-h">No video generated</div>
+      <div class="empty-p">Enter a prompt and click Generate</div>
+    </div>
+    <div class="preview-wrap" id="previewWrap">
+      <div class="preview-prompt" id="previewPrompt"></div>
+      <video class="preview-video" id="previewVid" controls playsinline preload="metadata"></video>
+      <div class="preview-actions">
+        <a class="act-btn primary" id="dlBtn" href="#" download="kio-video">⬇️ Download</a>
+        <button class="act-btn ghost" id="cpUrlBtn">📋 Copy URL</button>
+      </div>
+    </div>
+  </div>
+  <div class="hist-strip" id="histStrip">
+    <div class="hist-empty">— History will appear here —</div>
+  </div>
+</div>
+</div>
+<div class="lightbox" id="lightbox">
+  <button class="lb-close" id="lbClose">✕</button>
+  <video id="lbVid" controls style="max-width:94vw;max-height:94vh;border-radius:10px"></video>
+</div>
+<script>
+var LANG=localStorage.getItem('kio_lang')||'en';
+var hist=[];
+var selectedAspect='16:9';
+var customKey=localStorage.getItem('kio_apikey')||'';
+function toggleAcc(id){document.getElementById(id).classList.toggle('open');}
+document.querySelectorAll('#aspectGrid .size-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('#aspectGrid .size-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    selectedAspect=btn.dataset.aspect;
+    document.getElementById('videoAspect').value=selectedAspect;
+  });
+});
+var genBtn=document.getElementById('genBtn');
+function setLoad(on){genBtn.disabled=on;genBtn.classList.toggle('loading',on);}
+async function generate(){
+  var prompt=document.getElementById('prompt').value.trim();
+  if(!prompt){alert('Please enter a prompt');return;}
+  setLoad(true);
+  var reqBody={
+    model_name:'kling-v3-omni',
+    prompt:prompt,
+    duration:document.getElementById('videoDuration').value,
+    mode:'pro',
+    aspect_ratio:selectedAspect,
+    sound:document.getElementById('videoSound').value
+  };
+  var headers={'Content-Type':'application/json'};
+  if(customKey)headers['X-User-Api-Key']=customKey;
+  try{
+    var res=await fetch('/v1/videos/omni-video',{method:'POST',headers:headers,body:JSON.stringify(reqBody)});
+    var data=await res.json();
+    if(!res.ok)throw new Error(data.error?.message||'HTTP '+res.status);
+    var item=data.data&&data.data[0];
+    if(!item)throw new Error('No video in response');
+    var videoUrl=item.video_url||item.url;
+    if(!videoUrl)throw new Error('No video URL');
+    document.getElementById('emptyState').style.display='none';
+    document.getElementById('previewWrap').classList.add('show');
+    document.getElementById('previewVid').src=videoUrl;
+    document.getElementById('previewPrompt').textContent='🎬 '+prompt;
+    document.getElementById('dlBtn').href=videoUrl;
+    document.getElementById('cpUrlBtn').onclick=function(){navigator.clipboard.writeText(videoUrl);this.textContent='✓ Copied';setTimeout(()=>{this.textContent='📋 Copy URL';},2000);};
+    hist.unshift({src:videoUrl,prompt:prompt,ts:Date.now()});
+    if(hist.length>10)hist=hist.slice(0,10);
+    renderHist();
+  }catch(err){
+    alert('Error: '+err.message);
+  }
+  setLoad(false);
+}
+function renderHist(){
+  var strip=document.getElementById('histStrip');
+  if(hist.length===0){strip.innerHTML='<div class="hist-empty">— History will appear here —</div>';return;}
+  strip.innerHTML='';
+  hist.forEach(function(item,i){
+    var th=document.createElement('div');
+    th.className='hist-thumb';
+    var box=document.createElement('div');
+    box.className='hist-video';
+    box.textContent='🎬';
+    th.appendChild(box);
+    var tag=document.createElement('div');
+    tag.className='hist-tag';
+    tag.textContent='VIDEO';
+    th.appendChild(tag);
+    th.onclick=function(){document.getElementById('previewVid').src=item.src;document.getElementById('previewPrompt').textContent='🎬 '+item.prompt;document.getElementById('emptyState').style.display='none';document.getElementById('previewWrap').classList.add('show');};
+    strip.appendChild(th);
+  });
+}
+genBtn.onclick=generate;
+document.getElementById('prompt').addEventListener('keydown',function(e){if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}});
+document.getElementById('lbClose').onclick=function(){document.getElementById('lightbox').classList.remove('show');};
+document.getElementById('lightbox').onclick=function(e){if(e.target===this)this.classList.remove('show');};
+renderHist();
+</script>
+</body></html>\`;
+
+const HTML_UI = \`<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -887,6 +1150,9 @@ export default {
     try {
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
         return new Response(HTML_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
+
+      if (request.method === 'GET' && (url.pathname === '/video' || url.pathname === '/video.html'))
+        return new Response(VIDEO_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
 
       if (request.method === 'GET' && url.pathname === '/health')
         return json({ status: 'ok', version: '5.1.0', ui: 'split-canvas', features: ['image','video','i18n','custom-key','history-guard'] });
