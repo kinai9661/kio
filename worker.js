@@ -343,11 +343,15 @@ pre.api-code .bool{color:#22c55e}
       </div>
       <div class="field" id="videoAspectField" style="display:none">
         <label id="lbl-aspect">Aspect Ratio</label>
-        <select id="videoAspect">
-          <option value="16:9" selected>16:9 (Landscape)</option>
-          <option value="9:16">9:16 (Portrait)</option>
-          <option value="1:1">1:1 (Square)</option>
-        </select>
+        <div class="size-grid" id="aspectGrid">
+          <button class="size-btn active" data-aspect="16:9">16:9<span class="ratio">Landscape</span></button>
+          <button class="size-btn" data-aspect="9:16">9:16<span class="ratio">Portrait</span></button>
+          <button class="size-btn" data-aspect="1:1">1:1<span class="ratio">Square</span></button>
+          <button class="size-btn" data-aspect="4:3">4:3<span class="ratio">Classic</span></button>
+          <button class="size-btn" data-aspect="3:4">3:4<span class="ratio">Photo</span></button>
+          <button class="size-btn" data-aspect="21:9">21:9<span class="ratio">Cinema</span></button>
+        </div>
+        <input type="hidden" id="videoAspect" value="16:9">
       </div>
       <div class="field" id="videoSoundField" style="display:none">
         <label id="lbl-sound">Sound</label>
@@ -695,6 +699,16 @@ document.querySelectorAll('.size-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.size-btn').forEach(function(b){b.classList.remove('active');});
     btn.classList.add('active');selectedSize=btn.dataset.size;
+  });
+});
+
+var selectedAspect='16:9';
+document.querySelectorAll('#aspectGrid .size-btn').forEach(function(btn){
+  btn.addEventListener('click',function(){
+    document.querySelectorAll('#aspectGrid .size-btn').forEach(function(b){b.classList.remove('active');});
+    btn.classList.add('active');
+    selectedAspect=btn.dataset.aspect;
+    document.getElementById('videoAspect').value=selectedAspect;
   });
 });
 
