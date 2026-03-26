@@ -306,7 +306,8 @@ pre.api-code .bool{color:#22c55e}
       <div class="field">
         <label id="lbl-model">Model</label>
         <select id="model">
-          <option value="imagen-4" selected>imagen-4</option>
+          <option value="gemini-3.1-pro-preview" selected>gemini-3.1-pro-preview</option>
+          <option value="imagen-4">imagen-4</option>
           <option value="veo-3.1">veo-3.1</option>
           <option value="veo-3.1-preview">veo-3.1-preview</option>
         </select>
@@ -638,7 +639,7 @@ function switchMode(mode){
   document.querySelector('.mode-tab[data-mode="'+mode+'"]').classList.add('active');
   var modelSel=document.getElementById('model');
   if(mode==='image'){
-    modelSel.value='imagen-4';
+    modelSel.value='gemini-3.1-pro-preview';
     document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
   }else{
     modelSel.value='veo-3.1';
