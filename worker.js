@@ -495,10 +495,10 @@ function inferKind(src){
   return'image';
 }
 
-function saveHist(src,prompt,kind){
+function saveHist(src,prompt,kind,size){
   if(!src)return;
   var finalize = function(finalSrc, thumb){
-    hist.unshift({src:finalSrc, thumb:thumb, prompt:prompt, kind:kind||inferKind(finalSrc), ts:Date.now()});
+    hist.unshift({src:finalSrc, thumb:thumb, prompt:prompt, kind:kind||inferKind(finalSrc), size:size, ts:Date.now()});
     if(hist.length>10)hist=hist.slice(0,10);
     try{localStorage.setItem('kio_h',JSON.stringify(hist));}
     catch(e){
@@ -541,7 +541,18 @@ function renderHist(){
     }
     var ov=document.createElement('div');ov.className='hist-ov';ov.textContent='\uD83D\uDD0D';
     th.appendChild(ov);
-    th.onclick=function(){activeHistIdx=i;showPreview(item.src,item.prompt,item.kind);renderHist();};
+    th.onclick=function(){
+      activeHistIdx=i;
+      showPreview(item.src,item.prompt,item.kind);
+      if(item.size){
+        selectedSize=item.size;
+        document.querySelectorAll('.size-btn').forEach(function(btn){
+          btn.classList.remove('active');
+          if(btn.dataset.size===item.size)btn.classList.add('active');
+        });
+      }
+      renderHist();
+    };
     strip.appendChild(th);
   });
 }
@@ -684,6 +695,7 @@ async function generate(){
     if(!res.ok)throw new Error((data&&data.error&&data.error.message)||'HTTP '+res.status);
 
     var item=data&&data.data&&data.data[0];
+    var actualSize=null;
     if (res.status === 202 && item && item.task_id) {
       var taskId = item.task_id;
       var pollAttempts = 0;
@@ -700,6 +712,14 @@ async function generate(){
         
         if (st === 'completed' || st === 'done' || st === 'success') {
           item = pData.data[0];
+          actualSize = pData.actual_size;
+          if(actualSize){
+            selectedSize = actualSize;
+            document.querySelectorAll('.size-btn').forEach(function(btn){
+              btn.classList.remove('active');
+              if(btn.dataset.size === actualSize) btn.classList.add('active');
+            });
+          }
           break;
         }
         if (st === 'failed' || st === 'error') throw new Error(pData.error || 'Task failed');
@@ -714,7 +734,7 @@ async function generate(){
     var mediaKind=videoSrc?'video':(imageSrc?inferKind(imageSrc):(videoMode?'video':'image'));
     if(!mediaSrc){showStatus('error',tr('err-no-url'));setLoad(false);return;}
     showPreview(mediaSrc,prompt,mediaKind);
-    saveHist(mediaSrc,prompt,mediaKind);
+    saveHist(mediaSrc,prompt,mediaKind,actualSize||selectedSize);
     if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
     else if(mediaSrc.startsWith('data:'))showStatus('info',tr('info-b64-skip'));
     else showStatus('success',tr('ok-gen-image'));
@@ -837,8 +857,10 @@ export default {
         const videoUrl = extractVideo(d);
         const imgUrl   = extractImg(d);
         const b64      = extractB64(d);
+        const actualSize = d.size || d.dimensions || d.output_size || d.width && d.height ? (d.width + 'x' + d.height) : null;
         return json({
           status: st,
+          actual_size: actualSize,
           data: [{
             ...(videoUrl ? { video_url: videoUrl } : {}),
             ...(imgUrl   ? { url: imgUrl }          : {}),
