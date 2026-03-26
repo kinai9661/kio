@@ -326,6 +326,36 @@ pre.api-code .bool{color:#22c55e}
           <button class="size-btn" data-size="7168x4096">4K L<span class="ratio">7168&#xD7;4096</span></button>
         </div>
       </div>
+      <div class="field" id="videoProField" style="display:none">
+        <label id="lbl-video-mode">Video Mode</label>
+        <select id="videoMode">
+          <option value="standard" selected>Standard (veo-3.1)</option>
+          <option value="pro">Pro (kling-v3-omni)</option>
+        </select>
+      </div>
+      <div class="field" id="videoDurationField" style="display:none">
+        <label id="lbl-duration">Duration (seconds)</label>
+        <select id="videoDuration">
+          <option value="5" selected>5s</option>
+          <option value="10">10s</option>
+          <option value="15">15s</option>
+        </select>
+      </div>
+      <div class="field" id="videoAspectField" style="display:none">
+        <label id="lbl-aspect">Aspect Ratio</label>
+        <select id="videoAspect">
+          <option value="16:9" selected>16:9 (Landscape)</option>
+          <option value="9:16">9:16 (Portrait)</option>
+          <option value="1:1">1:1 (Square)</option>
+        </select>
+      </div>
+      <div class="field" id="videoSoundField" style="display:none">
+        <label id="lbl-sound">Sound</label>
+        <select id="videoSound">
+          <option value="on" selected>On</option>
+          <option value="off">Off</option>
+        </select>
+      </div>
     </div>
   </div>
 
@@ -412,6 +442,7 @@ var T={
   en:{
     'lbl-prompt':'PROMPT','lbl-settings':'SETTINGS','lbl-apikey':'API KEY','lbl-debug':'API DEBUG',
     'lbl-genbtn':'&#10024; Generate','lbl-model':'Model','lbl-size':'Size','lbl-mode-image':'📷 Image','lbl-mode-video':'🎬 Video',
+    'lbl-video-mode':'Video Mode','lbl-duration':'Duration (seconds)','lbl-aspect':'Aspect Ratio','lbl-sound':'Sound',
     'lbl-apikey-sub':'Custom Key (optional)',
     'lbl-prompt-hint':'Description <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
     'prompt-ph':'A futuristic city at dusk, neon lights, cinematic...',
@@ -435,6 +466,7 @@ var T={
     'lbl-prompt':'\u63d0\u793a\u8a5e','lbl-settings':'\u8a2d\u5b9a','lbl-apikey':'API \u91d1\u9470',
     'lbl-debug':'API \u9664\u932f','lbl-genbtn':'&#10024; \u751f\u6210',
     'lbl-model':'\u6a21\u578b','lbl-size':'\u5c3a\u5bf8','lbl-mode-image':'📷 \u5716\u50cf','lbl-mode-video':'🎬 \u5f71\u7247',
+    'lbl-video-mode':'\u5f71\u7247\u6a21\u5f0f','lbl-duration':'\u6642\u9577(\u79d2)','lbl-aspect':'\u7b6b\u4f8b','lbl-sound':'\u8072\u97f3',
     'lbl-apikey-sub':'\u81ea\u8a02 Key\uff08\u9078\u586b\uff09',
     'lbl-prompt-hint':'\u63d0\u793a\u8a5e <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
     'prompt-ph':'\u672a\u4f86\u57ce\u5e02\u7684\u9ec3\u660f\uff0c\u9713\u8679\u71c8\uff0c\u96fb\u5f71\u98a8\u683c...',
@@ -638,12 +670,24 @@ function switchMode(mode){
   document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
   document.querySelector('.mode-tab[data-mode="'+mode+'"]').classList.add('active');
   var modelSel=document.getElementById('model');
+  var videoProField=document.getElementById('videoProField');
+  var videoDurationField=document.getElementById('videoDurationField');
+  var videoAspectField=document.getElementById('videoAspectField');
+  var videoSoundField=document.getElementById('videoSoundField');
   if(mode==='image'){
     modelSel.value='gemini-3.1-pro-preview';
     document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
+    videoProField.style.display='none';
+    videoDurationField.style.display='none';
+    videoAspectField.style.display='none';
+    videoSoundField.style.display='none';
   }else{
     modelSel.value='veo-3.1';
     document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
+    videoProField.style.display='block';
+    videoDurationField.style.display='block';
+    videoAspectField.style.display='block';
+    videoSoundField.style.display='block';
   }
   modelSel.dispatchEvent(new Event('change'));
 }
@@ -675,8 +719,21 @@ async function generate(){
   setLoad(true,videoMode?tr('sending-video'):tr('sending'));
   var dbgSec=document.getElementById('sec-debug');
   if(!dbgSec.classList.contains('open'))dbgSec.classList.add('open');
-  var reqPath=videoMode?'/v1/videos/generations':'/v1/images/generations';
-  var reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
+  var reqPath,reqBody;
+  if(videoMode&&document.getElementById('videoMode').value==='pro'){
+    reqPath='/v1/videos/omni-video';
+    reqBody={
+      model_name:'kling-v3-omni',
+      prompt:prompt,
+      duration:document.getElementById('videoDuration').value,
+      mode:'pro',
+      aspect_ratio:document.getElementById('videoAspect').value,
+      sound:document.getElementById('videoSound').value
+    };
+  }else{
+    reqPath=videoMode?'/v1/videos/generations':'/v1/images/generations';
+    reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
+  }
   setApiReq(window.location.origin+reqPath,'POST',reqBody);
   var headers={'Content-Type':'application/json'};
   if(customKey)headers['X-User-Api-Key']=customKey;
@@ -698,7 +755,7 @@ async function generate(){
       setApiPoll(item._poll_attempts||'?',item.task_id||'-',item._poll_status||'completed',item);
     }
     if(!item)throw new Error(tr('err-no-media'));
-    var videoSrc=item.video_url||null;
+    var videoSrc=item.video_url||item.url||null;
     var imageSrc=item.url||(item.b64_json?'data:image/png;base64,'+item.b64_json:null);
     var mediaSrc=videoSrc||imageSrc;
     var mediaKind=videoSrc?'video':(imageSrc?inferKind(imageSrc):(videoMode?'video':'image'));
