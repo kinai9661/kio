@@ -3,270 +3,7 @@
  * Left sidebar + Right preview + Bottom history strip
  */
 
-const VIDEO_UI = `<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1.0">
-<title>KIO Gateway - Video Generation</title>
-<style>
-:root{
-  --bg:#0c0c10;--surface:#141418;--surface2:#1c1c23;--surface3:#22222d;
-  --border:#2a2a38;--accent:#7c6fff;--accent2:#00d2ff;
-  --text:#e2e2ef;--text2:#8c8ca3;--text3:#57576d;
-  --success:#22c55e;--error:#ef4444;--warn:#f59e0b;
-  --sidebar:280px;--radius:10px;
-}
-*{margin:0;padding:0;box-sizing:border-box}
-html,body{height:100%;overflow:hidden}
-body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--text);display:flex;flex-direction:column;}
-.topbar{height:46px;background:var(--surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 16px;gap:12px;flex-shrink:0;z-index:10;}
-.topbar-logo{display:flex;align-items:center;gap:8px}
-.logo-icon{width:28px;height:28px;border-radius:7px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-size:13px;}
-.logo-title{font-size:.92rem;font-weight:700;background:linear-gradient(90deg,var(--accent),var(--accent2));-webkit-background-clip:text;-webkit-text-fill-color:transparent;}
-.topbar-spacer{flex:1}
-.topbar-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.7rem;font-weight:700;padding:4px 10px;cursor:pointer;transition:all .15s;}
-.topbar-btn:hover{border-color:var(--accent);color:var(--accent)}
-.body-wrap{display:flex;flex:1;overflow:hidden}
-.sidebar{width:var(--sidebar);background:var(--surface);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow-y:auto;flex-shrink:0;}
-.acc-section{border-bottom:1px solid var(--border)}
-.acc-header{display:flex;align-items:center;justify-content:space-between;padding:11px 14px;cursor:pointer;user-select:none;font-size:.7rem;font-weight:700;letter-spacing:.08em;color:var(--text2);text-transform:uppercase;transition:color .15s;}
-.acc-header:hover{color:var(--text)}
-.acc-arrow{font-size:.6rem;transition:transform .2s;color:var(--text3)}
-.acc-section.open .acc-arrow{transform:rotate(180deg)}
-.acc-body{display:none;padding:10px 14px 14px}
-.acc-section.open .acc-body{display:block}
-.field{display:flex;flex-direction:column;gap:4px;margin-bottom:10px}
-.field label{font-size:.72rem;color:var(--text2);font-weight:500}
-input,select,textarea{background:var(--surface2);border:1px solid var(--border);border-radius:7px;color:var(--text);font-size:.82rem;padding:7px 10px;width:100%;outline:none;transition:border-color .2s;font-family:inherit;}
-input:focus,select:focus,textarea:focus{border-color:var(--accent)}
-select option{background:var(--surface2)}
-textarea#prompt{min-height:110px;resize:vertical;line-height:1.6}
-.size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
-.size-btn{background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text2);font-size:.66rem;font-weight:600;padding:6px 2px;cursor:pointer;text-align:center;transition:all .15s;line-height:1.35;}
-.size-btn:hover{border-color:var(--accent);color:var(--text)}
-.size-btn.active{border-color:var(--accent);background:rgba(124,111,255,.14);color:var(--accent)}
-.size-btn .ratio{font-size:.58rem;color:var(--text3);display:block;margin-top:2px}
-.size-btn.active .ratio{color:var(--accent);opacity:.65}
-.gen-btn{background:linear-gradient(135deg,var(--accent),var(--accent2));border:none;border-radius:var(--radius);color:#fff;font-size:.88rem;font-weight:700;padding:11px;cursor:pointer;width:100%;transition:opacity .2s,transform .15s;display:flex;align-items:center;justify-content:center;gap:7px;}
-.gen-btn:hover{opacity:.88;transform:translateY(-1px)}
-.gen-btn:disabled{opacity:.35;cursor:not-allowed;transform:none}
-.gen-btn .spin{width:15px;height:15px;border:2px solid rgba(255,255,255,.3);border-top-color:#fff;border-radius:50%;animation:spin .7s linear infinite;display:none;}
-.gen-btn.loading .spin{display:block}
-.gen-btn.loading .btn-txt{display:none}
-@keyframes spin{to{transform:rotate(360deg)}}
-.status{display:none;padding:7px 10px;border-radius:7px;font-size:.75rem;margin-top:6px}
-.status.error{display:flex;gap:5px;background:rgba(239,68,68,.1);color:var(--error);border:1px solid rgba(239,68,68,.18)}
-.status.success{display:flex;gap:5px;background:rgba(34,197,94,.08);color:var(--success);border:1px solid rgba(34,197,94,.18)}
-.canvas{flex:1;display:flex;flex-direction:column;overflow:hidden;background:var(--bg)}
-.canvas-preview{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;padding:24px;}
-.empty-state{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;color:var(--text3);text-align:center;}
-.empty-icon{font-size:4rem;opacity:.15}
-.empty-h{font-size:.95rem;font-weight:600;color:var(--text2)}
-.empty-p{font-size:.75rem;max-width:240px;line-height:1.6}
-.preview-wrap{display:none;width:100%;height:100%;position:relative;flex-direction:column;align-items:center;justify-content:center;}
-.preview-wrap.show{display:flex}
-.preview-video{max-width:100%;max-height:100%;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6);animation:fadeIn .4s ease;background:#000}
-@keyframes fadeIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:scale(1)}}
-.preview-actions{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:8px;background:rgba(12,12,16,.85);border:1px solid var(--border);border-radius:99px;padding:6px 12px;backdrop-filter:blur(8px);flex-wrap:wrap;justify-content:center;}
-.preview-prompt{position:absolute;top:12px;left:12px;right:12px;background:rgba(12,12,16,.8);border:1px solid var(--border);border-radius:8px;padding:7px 11px;font-size:.72rem;color:var(--text2);line-height:1.5;backdrop-filter:blur(6px);max-height:76px;overflow:hidden;}
-.act-btn{padding:5px 12px;border-radius:99px;font-size:.72rem;font-weight:600;cursor:pointer;border:none;transition:all .15s;text-decoration:none;display:inline-flex;align-items:center;gap:4px;white-space:nowrap;}
-.act-btn.primary{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff}
-.act-btn.ghost{background:rgba(255,255,255,.08);color:var(--text);border:1px solid var(--border)}
-.act-btn:hover{opacity:.82}
-.hist-strip{height:96px;flex-shrink:0;border-top:1px solid var(--border);background:var(--surface);display:flex;align-items:center;padding:0 14px;gap:10px;overflow-x:auto;}
-.hist-empty{font-size:.7rem;color:var(--text3);white-space:nowrap;margin:auto}
-.hist-thumb{width:70px;height:70px;flex-shrink:0;border-radius:7px;overflow:hidden;cursor:pointer;border:2px solid transparent;transition:border-color .15s,transform .15s;position:relative;background:var(--surface2);display:flex;align-items:center;justify-content:center;}
-.hist-thumb:hover{border-color:var(--accent);transform:scale(1.06)}
-.hist-thumb.active{border-color:var(--accent2)}
-.hist-thumb img{width:100%;height:100%;object-fit:cover;display:block}
-.hist-video{width:100%;height:100%;display:flex;align-items:center;justify-content:center;background:linear-gradient(135deg,#1f2937,#111827);color:#cbd5e1;font-size:1.3rem;}
-.hist-tag{position:absolute;right:4px;bottom:4px;font-size:.55rem;font-weight:700;background:rgba(0,0,0,.65);padding:2px 5px;border-radius:99px;color:#fff;}
-.hist-ov{position:absolute;inset:0;background:rgba(0,0,0,.55);opacity:0;transition:opacity .15s;display:flex;align-items:center;justify-content:center;font-size:.9rem;}
-.hist-thumb:hover .hist-ov{opacity:1}
-.lightbox{display:none;position:fixed;inset:0;z-index:100;background:rgba(0,0,0,.92);align-items:center;justify-content:center;}
-.lightbox.show{display:flex}
-.lightbox video{max-width:94vw;max-height:94vh;border-radius:10px}
-.lb-close{position:fixed;top:14px;right:18px;background:rgba(255,255,255,.1);border:none;color:#fff;width:34px;height:34px;border-radius:50%;font-size:.9rem;cursor:pointer;display:flex;align-items:center;justify-content:center;}
-</style>
-</head>
-<body>
-<div class="topbar">
-  <a href="/" style="text-decoration:none;color:var(--text2);font-size:.7rem;font-weight:700;cursor:pointer;transition:color .15s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='var(--text2)'">← Back</a>
-  <div class="topbar-spacer"></div>
-  <span style="font-size:.7rem;color:var(--text2);">🎬 Video Generation</span>
-</div>
-<div class="body-wrap">
-<aside class="sidebar">
-  <div class="acc-section open">
-    <div class="acc-header" onclick="toggleAcc('sec-prompt')">
-      <span><span style="margin-right:7px">📝</span>PROMPT</span>
-      <span class="acc-arrow">▼</span>
-    </div>
-    <div class="acc-body">
-      <div class="field">
-        <label>Description</label>
-        <textarea id="prompt" placeholder="A robot walking in rainy cyberpunk street..."></textarea>
-      </div>
-      <div style="margin-bottom:8px;display:none" id="progWrap">
-        <div style="font-size:.68rem;color:var(--text2);margin-bottom:4px" id="progLbl">Generating...</div>
-        <div style="height:2px;background:var(--border);border-radius:99px;overflow:hidden"><div id="progFill" style="height:100%;width:0%;background:linear-gradient(90deg,var(--accent),var(--accent2));transition:width .4s ease"></div></div>
-      </div>
-      <button class="gen-btn" id="genBtn">
-        <span class="btn-txt">✨ Generate</span>
-        <div class="spin"></div>
-      </button>
-      <div class="status" id="statusMsg"></div>
-    </div>
-  </div>
-  <div class="acc-section open">
-    <div class="acc-header" onclick="toggleAcc('sec-settings')">
-      <span><span style="margin-right:7px">⚙️</span>SETTINGS</span>
-      <span class="acc-arrow">▼</span>
-    </div>
-    <div class="acc-body">
-      <div class="field">
-        <label>Video Mode</label>
-        <select id="videoMode">
-          <option value="standard">Standard (veo-3.1)</option>
-          <option value="pro" selected>Pro (kling-v3-omni)</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Duration (seconds)</label>
-        <select id="videoDuration">
-          <option value="5">5s</option>
-          <option value="10" selected>10s</option>
-          <option value="15">15s</option>
-        </select>
-      </div>
-      <div class="field">
-        <label>Aspect Ratio</label>
-        <div class="size-grid" id="aspectGrid">
-          <button class="size-btn active" data-aspect="16:9">16:9<span class="ratio">Landscape</span></button>
-          <button class="size-btn" data-aspect="9:16">9:16<span class="ratio">Portrait</span></button>
-          <button class="size-btn" data-aspect="1:1">1:1<span class="ratio">Square</span></button>
-          <button class="size-btn" data-aspect="4:3">4:3<span class="ratio">Classic</span></button>
-          <button class="size-btn" data-aspect="3:4">3:4<span class="ratio">Photo</span></button>
-          <button class="size-btn" data-aspect="21:9">21:9<span class="ratio">Cinema</span></button>
-        </div>
-        <input type="hidden" id="videoAspect" value="16:9">
-      </div>
-      <div class="field">
-        <label>Sound</label>
-        <select id="videoSound">
-          <option value="on" selected>On</option>
-          <option value="off">Off</option>
-        </select>
-      </div>
-    </div>
-  </div>
-</aside>
-<div class="canvas">
-  <div class="canvas-preview" id="canvasPreview">
-    <div class="empty-state" id="emptyState">
-      <div class="empty-icon">🎬</div>
-      <div class="empty-h">No video generated</div>
-      <div class="empty-p">Enter a prompt and click Generate</div>
-    </div>
-    <div class="preview-wrap" id="previewWrap">
-      <div class="preview-prompt" id="previewPrompt"></div>
-      <video class="preview-video" id="previewVid" controls playsinline preload="metadata"></video>
-      <div class="preview-actions">
-        <a class="act-btn primary" id="dlBtn" href="#" download="kio-video">⬇️ Download</a>
-        <button class="act-btn ghost" id="cpUrlBtn">📋 Copy URL</button>
-      </div>
-    </div>
-  </div>
-  <div class="hist-strip" id="histStrip">
-    <div class="hist-empty">— History will appear here —</div>
-  </div>
-</div>
-</div>
-<div class="lightbox" id="lightbox">
-  <button class="lb-close" id="lbClose">✕</button>
-  <video id="lbVid" controls style="max-width:94vw;max-height:94vh;border-radius:10px"></video>
-</div>
-<script>
-var LANG=localStorage.getItem('kio_lang')||'en';
-var hist=[];
-var selectedAspect='16:9';
-var customKey=localStorage.getItem('kio_apikey')||'';
-function toggleAcc(id){document.getElementById(id).classList.toggle('open');}
-document.querySelectorAll('#aspectGrid .size-btn').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    document.querySelectorAll('#aspectGrid .size-btn').forEach(function(b){b.classList.remove('active');});
-    btn.classList.add('active');
-    selectedAspect=btn.dataset.aspect;
-    document.getElementById('videoAspect').value=selectedAspect;
-  });
-});
-var genBtn=document.getElementById('genBtn');
-function setLoad(on){genBtn.disabled=on;genBtn.classList.toggle('loading',on);}
-async function generate(){
-  var prompt=document.getElementById('prompt').value.trim();
-  if(!prompt){alert('Please enter a prompt');return;}
-  setLoad(true);
-  var reqBody={
-    model_name:'kling-v3-omni',
-    prompt:prompt,
-    duration:document.getElementById('videoDuration').value,
-    mode:'pro',
-    aspect_ratio:selectedAspect,
-    sound:document.getElementById('videoSound').value
-  };
-  var headers={'Content-Type':'application/json'};
-  if(customKey)headers['X-User-Api-Key']=customKey;
-  try{
-    var res=await fetch('/v1/videos/omni-video',{method:'POST',headers:headers,body:JSON.stringify(reqBody)});
-    var data=await res.json();
-    if(!res.ok)throw new Error(data.error?.message||'HTTP '+res.status);
-    var item=data.data&&data.data[0];
-    if(!item)throw new Error('No video in response');
-    var videoUrl=item.video_url||item.url;
-    if(!videoUrl)throw new Error('No video URL');
-    document.getElementById('emptyState').style.display='none';
-    document.getElementById('previewWrap').classList.add('show');
-    document.getElementById('previewVid').src=videoUrl;
-    document.getElementById('previewPrompt').textContent='🎬 '+prompt;
-    document.getElementById('dlBtn').href=videoUrl;
-    document.getElementById('cpUrlBtn').onclick=function(){navigator.clipboard.writeText(videoUrl);this.textContent='✓ Copied';setTimeout(()=>{this.textContent='📋 Copy URL';},2000);};
-    hist.unshift({src:videoUrl,prompt:prompt,ts:Date.now()});
-    if(hist.length>10)hist=hist.slice(0,10);
-    renderHist();
-  }catch(err){
-    alert('Error: '+err.message);
-  }
-  setLoad(false);
-}
-function renderHist(){
-  var strip=document.getElementById('histStrip');
-  if(hist.length===0){strip.innerHTML='<div class="hist-empty">— History will appear here —</div>';return;}
-  strip.innerHTML='';
-  hist.forEach(function(item,i){
-    var th=document.createElement('div');
-    th.className='hist-thumb';
-    var box=document.createElement('div');
-    box.className='hist-video';
-    box.textContent='🎬';
-    th.appendChild(box);
-    var tag=document.createElement('div');
-    tag.className='hist-tag';
-    tag.textContent='VIDEO';
-    th.appendChild(tag);
-    th.onclick=function(){document.getElementById('previewVid').src=item.src;document.getElementById('previewPrompt').textContent='🎬 '+item.prompt;document.getElementById('emptyState').style.display='none';document.getElementById('previewWrap').classList.add('show');};
-    strip.appendChild(th);
-  });
-}
-genBtn.onclick=generate;
-document.getElementById('prompt').addEventListener('keydown',function(e){if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}});
-document.getElementById('lbClose').onclick=function(){document.getElementById('lightbox').classList.remove('show');};
-document.getElementById('lightbox').onclick=function(e){if(e.target===this)this.classList.remove('show');};
-renderHist();
-</script>
-</body></html>\`;
-
-const HTML_UI = \`<!DOCTYPE html>
+const HTML_UI = `<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -356,8 +93,6 @@ textarea#prompt{min-height:110px;resize:vertical;line-height:1.6}
 .size-btn.active{border-color:var(--accent);background:rgba(124,111,255,.14);color:var(--accent)}
 .size-btn .ratio{font-size:.58rem;color:var(--text3);display:block;margin-top:2px}
 .size-btn.active .ratio{color:var(--accent);opacity:.65}
-.mode-tab{transition:all .15s}
-.mode-tab.active{color:var(--accent);border-bottom-color:var(--accent)}
 .apikey-wrap{position:relative}
 .apikey-wrap input{padding-right:52px;font-family:'SF Mono','Fira Code',monospace;font-size:.75rem}
 .apikey-eye{
@@ -551,15 +286,6 @@ pre.api-code .bool{color:#22c55e}
     </div>
   </div>
 
-  <div class="acc-section open" id="sec-mode">
-    <div class="acc-header" style="padding:0;border-bottom:1px solid var(--border)">
-      <div style="display:flex;width:100%;height:100%">
-        <button class="mode-tab active" data-mode="image" onclick="switchMode('image')" style="flex:1;padding:11px;border:none;background:transparent;color:var(--text2);font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s">📷 Image</button>
-        <button class="mode-tab" data-mode="video" onclick="switchMode('video')" style="flex:1;padding:11px;border:none;background:transparent;color:var(--text2);font-size:.7rem;font-weight:700;letter-spacing:.08em;text-transform:uppercase;cursor:pointer;border-bottom:2px solid transparent;transition:all .15s">🎬 Video</button>
-      </div>
-    </div>
-  </div>
-
   <div class="acc-section open" id="sec-settings">
     <div class="acc-header" onclick="toggleAcc('sec-settings')">
       <span><span class="acc-icon">&#9881;&#65039;</span><span id="lbl-settings">SETTINGS</span></span>
@@ -589,39 +315,13 @@ pre.api-code .bool{color:#22c55e}
           <button class="size-btn" data-size="7168x4096">4K L<span class="ratio">7168&#xD7;4096</span></button>
         </div>
       </div>
-      <div class="field" id="videoProField" style="display:none">
-        <label id="lbl-video-mode">Video Mode</label>
-        <select id="videoMode">
-          <option value="standard" selected>Standard (veo-3.1)</option>
-          <option value="pro">Pro (kling-v3-omni)</option>
-        </select>
-      </div>
-      <div class="field" id="videoDurationField" style="display:none">
-        <label id="lbl-duration">Duration (seconds)</label>
-        <select id="videoDuration">
-          <option value="5" selected>5s</option>
-          <option value="10">10s</option>
-          <option value="15">15s</option>
-        </select>
-      </div>
-      <div class="field" id="videoAspectField" style="display:none">
-        <label id="lbl-aspect">Aspect Ratio</label>
-        <div class="size-grid" id="aspectGrid">
-          <button class="size-btn active" data-aspect="16:9">16:9<span class="ratio">Landscape</span></button>
-          <button class="size-btn" data-aspect="9:16">9:16<span class="ratio">Portrait</span></button>
-          <button class="size-btn" data-aspect="1:1">1:1<span class="ratio">Square</span></button>
-          <button class="size-btn" data-aspect="4:3">4:3<span class="ratio">Classic</span></button>
-          <button class="size-btn" data-aspect="3:4">3:4<span class="ratio">Photo</span></button>
-          <button class="size-btn" data-aspect="21:9">21:9<span class="ratio">Cinema</span></button>
-        </div>
-        <input type="hidden" id="videoAspect" value="16:9">
-      </div>
-      <div class="field" id="videoSoundField" style="display:none">
-        <label id="lbl-sound">Sound</label>
-        <select id="videoSound">
-          <option value="on" selected>On</option>
-          <option value="off">Off</option>
-        </select>
+      <div class="field">
+        <label id="lbl-upload">Upload Media</label>
+        <input type="file" id="uploadFile" accept="image/*,video/*">
+        <button class="gen-btn" id="uploadBtn" type="button" style="margin-top:6px;">
+          <span class="btn-txt" id="uploadBtnTxt">&#11014;&#65039; Upload</span>
+          <div class="spin"></div>
+        </button>
       </div>
     </div>
   </div>
@@ -708,8 +408,7 @@ var LANG=localStorage.getItem('kio_lang')||'en';
 var T={
   en:{
     'lbl-prompt':'PROMPT','lbl-settings':'SETTINGS','lbl-apikey':'API KEY','lbl-debug':'API DEBUG',
-    'lbl-genbtn':'&#10024; Generate','lbl-model':'Model','lbl-size':'Size','lbl-mode-image':'📷 Image','lbl-mode-video':'🎬 Video',
-    'lbl-video-mode':'Video Mode','lbl-duration':'Duration (seconds)','lbl-aspect':'Aspect Ratio','lbl-sound':'Sound',
+    'lbl-genbtn':'&#10024; Generate','lbl-model':'Model','lbl-size':'Size',
     'lbl-apikey-sub':'Custom Key (optional)',
     'lbl-prompt-hint':'Description <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
     'prompt-ph':'A futuristic city at dusk, neon lights, cinematic...',
@@ -727,13 +426,13 @@ var T={
     'btn-dl':'&#11015;&#65039; Download','btn-copy-url':'&#128203; Copy URL',
     'btn-copied':'&#10003; Copied','btn-zoom':'&#128269; Zoom',
     'poll-times':'polls','tab-req':'&#128228; Req','tab-res':'&#128229; Res','tab-poll':'&#128260; Poll',
-    'hist-video':'VIDEO'
-    },
+    'hist-video':'VIDEO','lbl-upload':'Upload Media','btn-upload':'&#11014;&#65039; Upload',
+    'uploading':'Uploading media...','ok-upload':'Upload successful!','err-file':'Please select a file'
+  },
   zh:{
     'lbl-prompt':'\u63d0\u793a\u8a5e','lbl-settings':'\u8a2d\u5b9a','lbl-apikey':'API \u91d1\u9470',
     'lbl-debug':'API \u9664\u932f','lbl-genbtn':'&#10024; \u751f\u6210',
-    'lbl-model':'\u6a21\u578b','lbl-size':'\u5c3a\u5bf8','lbl-mode-image':'📷 \u5716\u50cf','lbl-mode-video':'🎬 \u5f71\u7247',
-    'lbl-video-mode':'\u5f71\u7247\u6a21\u5f0f','lbl-duration':'\u6642\u9577(\u79d2)','lbl-aspect':'\u7b6b\u4f8b','lbl-sound':'\u8072\u97f3',
+    'lbl-model':'\u6a21\u578b','lbl-size':'\u5c3a\u5bf8',
     'lbl-apikey-sub':'\u81ea\u8a02 Key\uff08\u9078\u586b\uff09',
     'lbl-prompt-hint':'\u63d0\u793a\u8a5e <span style="color:var(--text3);font-weight:400;font-size:.65rem">(Ctrl+Enter)</span>',
     'prompt-ph':'\u672a\u4f86\u57ce\u5e02\u7684\u9ec3\u660f\uff0c\u9713\u8679\u71c8\uff0c\u96fb\u5f71\u98a8\u683c...',
@@ -758,13 +457,14 @@ var T={
     'btn-zoom':'&#128269; \u653e\u5927',
     'poll-times':'\u6b21\u8f2a\u8a62',
     'tab-req':'&#128228; \u8acb\u6c42','tab-res':'&#128229; \u56de\u61c9','tab-poll':'&#128260; \u8f2a\u8a62',
-    'hist-video':'\u5f71\u7247'
+    'hist-video':'\u5f71\u7247','lbl-upload':'\u4e0a\u50b3\u5a92\u9ad4','btn-upload':'&#11014;&#65039; \u4e0a\u50b3',
+    'uploading':'\u6b63\u5728\u4e0a\u50b3\u5a92\u9ad4...','ok-upload':'\u4e0a\u50b3\u6210\u529f\uff01','err-file':'\u8acb\u5148\u9078\u64c7\u6a94\u6848'
   }
 };
 function tr(k){return T[LANG][k]||T.en[k]||k;}
 function applyLang(){
   ['lbl-prompt','lbl-settings','lbl-apikey','lbl-debug','lbl-genbtn','lbl-model','lbl-size',
-   'lbl-apikey-sub','lbl-empty-h','lbl-empty-p','tab-req','tab-res','tab-poll']
+   'lbl-apikey-sub','lbl-empty-h','lbl-empty-p','tab-req','tab-res','tab-poll','lbl-upload']
   .forEach(function(id){var el=document.getElementById(id);if(el)el.innerHTML=tr(id);});
   document.getElementById('lbl-prompt-hint').innerHTML=tr('lbl-prompt-hint');
   document.getElementById('prompt').placeholder=tr('prompt-ph');
@@ -773,6 +473,8 @@ function applyLang(){
   document.getElementById('dlBtn').innerHTML=tr('btn-dl');
   document.getElementById('cpUrlBtn').innerHTML=tr('btn-copy-url');
   document.getElementById('zoomBtn').innerHTML=tr('btn-zoom');
+  var upTxt=document.getElementById('uploadBtnTxt');
+  if(upTxt)upTxt.innerHTML=tr('btn-upload');
   updateKeyStatus();
   renderHist();
 }
@@ -808,13 +510,20 @@ function inferKind(src){
 }
 
 function saveHist(src,prompt,kind){
-  if(!src)return;
+  if(!src||src.startsWith('data:'))return;
   hist.unshift({src:src,prompt:prompt,kind:kind||inferKind(src),ts:Date.now()});
   if(hist.length>10)hist=hist.slice(0,10);
   try{localStorage.setItem('kio_h',JSON.stringify(hist));}
   catch(e){
     while(hist.length>1){hist.pop();try{localStorage.setItem('kio_h',JSON.stringify(hist));break;}catch(e2){}}
   }
+  activeHistIdx=0;renderHist();
+}
+
+function saveHistB64(src,prompt,kind){
+  if(!src||!src.startsWith('data:'))return;
+  hist.unshift({src:src,prompt:prompt,kind:kind||inferKind(src),ts:Date.now(),temp:true});
+  if(hist.length>10)hist=hist.slice(0,10);
   activeHistIdx=0;renderHist();
 }
 
@@ -931,47 +640,10 @@ function showStatus(type,msg){
 }
 
 var selectedSize='1024x1024';
-var currentMode='image';
-function switchMode(mode){
-  currentMode=mode;
-  document.querySelectorAll('.mode-tab').forEach(function(t){t.classList.remove('active');});
-  document.querySelector('.mode-tab[data-mode="'+mode+'"]').classList.add('active');
-  var modelSel=document.getElementById('model');
-  var videoProField=document.getElementById('videoProField');
-  var videoDurationField=document.getElementById('videoDurationField');
-  var videoAspectField=document.getElementById('videoAspectField');
-  var videoSoundField=document.getElementById('videoSoundField');
-  if(mode==='image'){
-    modelSel.value='gemini-3.1-pro-preview';
-    document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
-    videoProField.style.display='none';
-    videoDurationField.style.display='none';
-    videoAspectField.style.display='none';
-    videoSoundField.style.display='none';
-  }else{
-    modelSel.value='veo-3.1';
-    document.querySelectorAll('.size-btn').forEach(function(b){b.style.display='block'});
-    videoProField.style.display='block';
-    videoDurationField.style.display='block';
-    videoAspectField.style.display='block';
-    videoSoundField.style.display='block';
-  }
-  modelSel.dispatchEvent(new Event('change'));
-}
 document.querySelectorAll('.size-btn').forEach(function(btn){
   btn.addEventListener('click',function(){
     document.querySelectorAll('.size-btn').forEach(function(b){b.classList.remove('active');});
     btn.classList.add('active');selectedSize=btn.dataset.size;
-  });
-});
-
-var selectedAspect='16:9';
-document.querySelectorAll('#aspectGrid .size-btn').forEach(function(btn){
-  btn.addEventListener('click',function(){
-    document.querySelectorAll('#aspectGrid .size-btn').forEach(function(b){b.classList.remove('active');});
-    btn.classList.add('active');
-    selectedAspect=btn.dataset.aspect;
-    document.getElementById('videoAspect').value=selectedAspect;
   });
 });
 
@@ -982,38 +654,61 @@ document.getElementById('model').addEventListener('change',function(){
 });
 
 var genBtn=document.getElementById('genBtn');
+var uploadBtn=document.getElementById('uploadBtn');
 function setLoad(on,lbl){
   genBtn.disabled=on;genBtn.classList.toggle('loading',on);
   if(on)startProg(lbl||tr('sending'));else endProg();
+}
+function setUploadLoad(on){
+  if(!uploadBtn)return;
+  uploadBtn.disabled=on;
+  uploadBtn.classList.toggle('loading',on);
+}
+
+function extFromMime(mime){
+  var m=String(mime||'').toLowerCase();
+  if(m.indexOf('image/png')===0)return'png';
+  if(m.indexOf('image/jpeg')===0)return'jpg';
+  if(m.indexOf('image/webp')===0)return'webp';
+  if(m.indexOf('image/gif')===0)return'gif';
+  if(m.indexOf('video/mp4')===0)return'mp4';
+  if(m.indexOf('video/webm')===0)return'webm';
+  return'bin';
+}
+
+async function uploadDataUrlToHistory(dataUrl,kind){
+  if(!dataUrl||!String(dataUrl).startsWith('data:'))return null;
+  try{
+    var dataRes=await fetch(dataUrl);
+    if(!dataRes.ok)return null;
+    var blob=await dataRes.blob();
+    var mime=blob.type||'';
+    var ext=extFromMime(mime);
+    var headers={};
+    if(customKey)headers['X-User-Api-Key']=customKey;
+    var formData=new FormData();
+    var fileName=(kind==='video'?'kio-video-':'kio-image-')+Date.now()+'.'+ext;
+    formData.append('file',blob,fileName);
+    var upRes=await fetch('/v1/media/upload',{method:'POST',headers:headers,body:formData});
+    var upData=await upRes.json().catch(function(){return{};});
+    if(!upRes.ok)return null;
+    return (upData&&upData.url)||null;
+  }catch(e){
+    return null;
+  }
 }
 
 async function generate(){
   var prompt=document.getElementById('prompt').value.trim();
   var model=document.getElementById('model').value;
-  var videoMode=currentMode==='video';
+  var videoMode=isVideoModel(model);
   if(!prompt){showStatus('error',tr('err-prompt'));return;}
   document.getElementById('statusMsg').className='status';
   setLoad(true,videoMode?tr('sending-video'):tr('sending'));
   var dbgSec=document.getElementById('sec-debug');
   if(!dbgSec.classList.contains('open'))dbgSec.classList.add('open');
-  var reqPath,reqBody;
-  if(videoMode&&document.getElementById('videoMode').value==='pro'){
-    reqPath='/v1/videos/omni-video';
-    reqBody={
-      model_name:'kling-v3-omni',
-      prompt:prompt,
-      duration:document.getElementById('videoDuration').value,
-      mode:'pro',
-      aspect_ratio:document.getElementById('videoAspect').value,
-      sound:document.getElementById('videoSound').value
-    };
-  }else if(videoMode){
-    reqPath='/v1/videos/generations';
-    reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
-  }else{
-    reqPath='/v1/images/generations';
-    reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
-  }
+  var reqPath=videoMode?'/v1/videos/generations':'/v1/images/generations';
+  var reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
   setApiReq(window.location.origin+reqPath,'POST',reqBody);
   var headers={'Content-Type':'application/json'};
   if(customKey)headers['X-User-Api-Key']=customKey;
@@ -1035,22 +730,83 @@ async function generate(){
       setApiPoll(item._poll_attempts||'?',item.task_id||'-',item._poll_status||'completed',item);
     }
     if(!item)throw new Error(tr('err-no-media'));
-    var videoSrc=item.video_url||item.url||null;
+    var videoSrc=item.video_url||null;
     var imageSrc=item.url||(item.b64_json?'data:image/png;base64,'+item.b64_json:null);
     var mediaSrc=videoSrc||imageSrc;
     var mediaKind=videoSrc?'video':(imageSrc?inferKind(imageSrc):(videoMode?'video':'image'));
     if(!mediaSrc){showStatus('error',tr('err-no-url'));setLoad(false);return;}
     showPreview(mediaSrc,prompt,mediaKind);
-    saveHist(mediaSrc,prompt,mediaKind);
-    if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
-    else showStatus('success',tr('ok-gen-image'));
+    if(mediaSrc.startsWith('data:')){
+      var hostedFromB64=await uploadDataUrlToHistory(mediaSrc,mediaKind);
+      if(hostedFromB64){
+        saveHist(hostedFromB64,prompt,mediaKind);
+        showStatus('success',mediaKind==='video'?tr('ok-gen-video'):tr('ok-gen-image'));
+      }else{
+        saveHistB64(mediaSrc,prompt,mediaKind);
+        showStatus('info',tr('info-b64-mem'));
+      }
+    }else{
+      saveHist(mediaSrc,prompt,mediaKind);
+      if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
+      else showStatus('success',tr('ok-gen-image'));
+    }
   }catch(err){
     document.getElementById('apiDot').className='api-dot err';
     showStatus('error',err.message||String(err));
   }
   setLoad(false);
 }
+async function uploadMedia(){
+  var fileInput=document.getElementById('uploadFile');
+  var file=fileInput&&fileInput.files?fileInput.files[0]:null;
+  if(!file){showStatus('error',tr('err-file'));return;}
+
+  document.getElementById('statusMsg').className='status';
+  setUploadLoad(true);
+  startProg(tr('uploading'));
+
+  var headers={};
+  if(customKey)headers['X-User-Api-Key']=customKey;
+  var reqPath='/v1/media/upload';
+  var reqMeta={filename:file.name,size:file.size,type:file.type||'application/octet-stream'};
+  setApiReq(window.location.origin+reqPath,'POST',reqMeta);
+  var t0=Date.now();
+
+  try{
+    var formData=new FormData();
+    formData.append('file',file,file.name||('upload-'+Date.now()));
+    var res=await fetch(reqPath,{method:'POST',headers:headers,body:formData});
+    var ms=Date.now()-t0;
+    var data=await res.json().catch(function(){return{};});
+    setApiRes(res.status,data,ms);
+
+    document.querySelectorAll('.api-tab').forEach(function(t){t.classList.remove('active');});
+    document.getElementById('tab-res').classList.add('active');
+    activeTab='res';
+    document.getElementById('tabReq').style.display='none';
+    document.getElementById('tabRes').style.display='block';
+    document.getElementById('tabPoll').style.display='none';
+
+    if(!res.ok)throw new Error((data&&data.error&&data.error.message)||'HTTP '+res.status);
+    var hostedUrl=(data&&data.url)||null;
+    if(!hostedUrl)throw new Error(tr('err-no-url'));
+
+    var mediaKind=(file.type||'').startsWith('video/')?'video':'image';
+    showPreview(hostedUrl,file.name||'upload',mediaKind);
+    saveHist(hostedUrl,file.name||'upload',mediaKind);
+    showStatus('success',tr('ok-upload'));
+    fileInput.value='';
+  }catch(err){
+    document.getElementById('apiDot').className='api-dot err';
+    showStatus('error',err.message||String(err));
+  }finally{
+    setUploadLoad(false);
+    endProg();
+  }
+}
+
 genBtn.onclick=generate;
+if(uploadBtn)uploadBtn.onclick=uploadMedia;
 document.getElementById('prompt').addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}
 });
@@ -1080,11 +836,15 @@ export default {
     if (request.method === 'OPTIONS') return new Response(null, { status: 204, headers: corsHeaders });
 
     const SUPABASE_URL = 'https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1';
+    const MEDIA_UPLOAD_URL = env.MEDIA_UPLOAD_URL || 'https://bkdsuattzwucejyqdgsg.supabase.co/functions/v1/api/upload';
     const DEFAULT_KEY  = env.MEDO_API_KEY || 'nb_SBa89oD7xBbHSrwJKny3acDF6kRFuPBNgF2BEEDTdnRGMyBe';
     const SUPA_ANON    = env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E';
 
     const USER_KEY = request.headers.get('X-User-Api-Key');
     const API_KEY  = (USER_KEY && USER_KEY.trim()) ? USER_KEY.trim() : DEFAULT_KEY;
+    const MEDIA_UPLOAD_API_KEY = env.MEDIA_UPLOAD_API_KEY || API_KEY;
+    const MEDIA_UPLOAD_TIMEOUT_MS = Math.max(10000, Number(env.MEDIA_UPLOAD_TIMEOUT_MS || 90000) || 90000);
+    const MEDIA_UPLOAD_MAX_RETRIES = Math.max(0, Number(env.MEDIA_UPLOAD_MAX_RETRIES || 2) || 2);
 
     const json = (d, s = 200) => new Response(JSON.stringify(d), {
       status: s, headers: { 'Content-Type': 'application/json', ...corsHeaders },
@@ -1098,6 +858,93 @@ export default {
       'Authorization': 'Bearer ' + API_KEY,
       'apikey': SUPA_ANON,
     });
+    const mediaUploadHdr = () => ({
+      'Authorization': 'Bearer ' + MEDIA_UPLOAD_API_KEY,
+    });
+
+    const isRetryableUploadStatus = (status) => status === 429 || status === 502 || status === 503 || status === 504;
+
+    async function fetchWithTimeout(resource, init = {}, timeoutMs = MEDIA_UPLOAD_TIMEOUT_MS) {
+      if (!timeoutMs || Number(timeoutMs) <= 0) return fetch(resource, init);
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort('timeout'), timeoutMs);
+      try {
+        return await fetch(resource, { ...init, signal: controller.signal });
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function uploadToMediaHost(buildFormData) {
+      let lastResult = null;
+      for (let i = 0; i <= MEDIA_UPLOAD_MAX_RETRIES; i++) {
+        try {
+          const upstream = await fetchWithTimeout(MEDIA_UPLOAD_URL, {
+            method: 'POST',
+            headers: mediaUploadHdr(),
+            body: buildFormData(),
+          });
+
+          const rawText = await upstream.text();
+          let raw;
+          try {
+            raw = JSON.parse(rawText);
+          } catch {
+            raw = { raw: rawText };
+          }
+
+          if (upstream.ok) {
+            return {
+              ok: true,
+              status: upstream.status,
+              statusText: upstream.statusText,
+              raw,
+              retryable: false,
+              attempts: i + 1,
+            };
+          }
+
+          const retryable = isRetryableUploadStatus(upstream.status);
+          lastResult = {
+            ok: false,
+            status: upstream.status,
+            statusText: upstream.statusText,
+            raw,
+            retryable,
+            attempts: i + 1,
+          };
+
+          if (!retryable || i >= MEDIA_UPLOAD_MAX_RETRIES) return lastResult;
+        } catch (e) {
+          const msg = (e && e.message) ? e.message : String(e || 'unknown upload error');
+          const lower = String(msg).toLowerCase();
+          const isTimeout = (e && e.name === 'AbortError') || lower.includes('abort') || lower.includes('timeout');
+
+          lastResult = {
+            ok: false,
+            status: isTimeout ? 504 : 0,
+            statusText: isTimeout ? 'Gateway Timeout' : 'FetchError',
+            raw: { message: msg },
+            retryable: true,
+            attempts: i + 1,
+          };
+
+          if (i >= MEDIA_UPLOAD_MAX_RETRIES) return lastResult;
+        }
+
+        await new Promise(r => setTimeout(r, 400 * (i + 1)));
+      }
+
+      return lastResult || {
+        ok: false,
+        status: 0,
+        statusText: 'Unknown',
+        raw: { message: 'unknown upload error' },
+        retryable: false,
+        attempts: 1,
+      };
+    }
+
     const isVideoModel = (m) => /(^|-)veo/i.test(String(m || '')) || String(m || '').includes('veo');
 
     async function submitTask(body) {
@@ -1146,13 +993,55 @@ export default {
 
     function extractB64(r) { return r.b64_json || r.base64 || (r.result && r.result.b64_json) || null; }
 
+    function pickUploadUrl(r) {
+      if (!r || typeof r !== 'object') return null;
+      const direct = r.url || r.publicUrl || r.public_url;
+      const dataObj = (r.data && typeof r.data === 'object') ? r.data : null;
+      const fromData = dataObj && (dataObj.url || dataObj.publicUrl || dataObj.public_url);
+      if (r.success === false) return null;
+      return direct || fromData || null;
+    }
+
+    function inferExtFromContentType(ct, fallback = 'bin') {
+      const t = String(ct || '').toLowerCase();
+      if (t.includes('image/png')) return 'png';
+      if (t.includes('image/jpeg') || t.includes('image/jpg')) return 'jpg';
+      if (t.includes('image/webp')) return 'webp';
+      if (t.includes('image/gif')) return 'gif';
+      if (t.includes('video/mp4')) return 'mp4';
+      if (t.includes('video/webm')) return 'webm';
+      if (t.includes('video/quicktime')) return 'mov';
+      return fallback;
+    }
+
+    async function uploadRemoteMedia(mediaUrl, fallbackExt = 'bin') {
+      if (!mediaUrl || String(mediaUrl).startsWith('data:')) return mediaUrl;
+      try {
+        const source = await fetchWithTimeout(mediaUrl, {}, MEDIA_UPLOAD_TIMEOUT_MS);
+        if (!source.ok) return mediaUrl;
+
+        const ctype = source.headers.get('content-type') || '';
+        const ext = inferExtFromContentType(ctype, fallbackExt);
+        const blob = await source.blob();
+        const isVideo = String(ctype).toLowerCase().startsWith('video/');
+        const fileName = (isVideo ? 'kio-video-' : 'kio-image-') + Date.now() + '.' + ext;
+
+        const result = await uploadToMediaHost(() => {
+          const formData = new FormData();
+          formData.append('file', blob, fileName);
+          return formData;
+        });
+
+        if (!result.ok) return mediaUrl;
+        return pickUploadUrl(result.raw) || mediaUrl;
+      } catch (e) {
+        return mediaUrl;
+      }
+    }
 
     try {
       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
         return new Response(HTML_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
-
-      if (request.method === 'GET' && (url.pathname === '/video' || url.pathname === '/video.html'))
-        return new Response(VIDEO_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
 
       if (request.method === 'GET' && url.pathname === '/health')
         return json({ status: 'ok', version: '5.1.0', ui: 'split-canvas', features: ['image','video','i18n','custom-key','history-guard'] });
@@ -1165,6 +1054,41 @@ export default {
           { id: 'veo-3.1-preview',       object: 'model', owned_by: 'google' },
         ]});
 
+      if (request.method === 'POST' && url.pathname === '/v1/media/upload') {
+        const incoming = await request.formData();
+        const file = incoming.get('file');
+        if (!file || typeof file === 'string') {
+          return json({ error: { message: 'file is required' } }, 400);
+        }
+
+        const result = await uploadToMediaHost(() => {
+          const formData = new FormData();
+          formData.append('file', file, file.name || ('upload-' + Date.now()));
+          return formData;
+        });
+
+        if (!result.ok) {
+          const upstreamMsg = (result.raw && typeof result.raw === 'object' && (
+            (result.raw.error && result.raw.error.message) || result.raw.message || result.raw.raw
+          )) || ('HTTP ' + result.status + ' ' + result.statusText);
+          return json({
+            error: {
+              message: 'media upload failed: ' + upstreamMsg,
+              status: result.status,
+              statusText: result.statusText,
+              retryable: !!result.retryable,
+              attempts: result.attempts,
+              timeout_ms: MEDIA_UPLOAD_TIMEOUT_MS,
+              suggestion: (result.status === 504 || /timeout/i.test(String(upstreamMsg || '')))
+                ? 'increase MEDIA_UPLOAD_TIMEOUT_MS and/or MEDIA_UPLOAD_MAX_RETRIES'
+                : undefined,
+              upstream: result.raw,
+            }
+          }, result.status || 502);
+        }
+
+        return json({ url: pickUploadUrl(result.raw), data: result.raw, attempts: result.attempts });
+      }
 
       if (
         request.method === 'POST' && (
@@ -1195,6 +1119,8 @@ export default {
         let syncImg   = extractImg(submitResp);
         const syncB64 = extractB64(submitResp);
         if (syncVideo || syncImg || syncB64) {
+          if (syncVideo) syncVideo = await uploadRemoteMedia(syncVideo, 'mp4');
+          if (syncImg) syncImg = await uploadRemoteMedia(syncImg, 'png');
           return json({
             created: Math.floor(Date.now() / 1000),
             _debug: { request: requestInfo, submit_ms: submitMs, mode: 'sync' },
@@ -1225,6 +1151,8 @@ export default {
         let videoUrl = extractVideo(pollData);
         let imgUrl   = extractImg(pollData);
         const b64    = extractB64(pollData);
+        if (videoUrl) videoUrl = await uploadRemoteMedia(videoUrl, 'mp4');
+        if (imgUrl) imgUrl = await uploadRemoteMedia(imgUrl, 'png');
 
         return json({
           created: Math.floor(Date.now() / 1000),
