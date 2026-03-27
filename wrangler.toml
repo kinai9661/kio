@@ -5,7 +5,7 @@ compatibility_flags = ["nodejs_compat"]
 
 [[kv_namespaces]]
 binding = "QUEUE_KV"
-id = "kio-queue"
+id = "3a931590b00046b89d259e19ab05a87d"
 preview_id = "3a931590b00046b89d259e19ab05a87d"
 
 [[triggers.crons]]
