@@ -278,11 +278,17 @@ pre.api-code .bool{color:#22c55e}
         <div class="prog-lbl" id="progLbl">Generating...</div>
         <div class="prog-bar"><div class="prog-fill" id="progFill"></div></div>
       </div>
+      <div class="field">
+        <label>
+          <input type="checkbox" id="useQueue"> Use Queue (wait for turn)
+        </label>
+      </div>
       <button class="gen-btn" id="genBtn">
         <span class="btn-txt" id="lbl-genbtn">&#10024; Generate</span>
         <div class="spin"></div>
       </button>
       <div class="status" id="statusMsg"></div>
+      <div class="status info" id="queueStatus" style="display:none"></div>
     </div>
   </div>
 
@@ -660,13 +666,73 @@ function setLoad(on,lbl){
   if(on)startProg(lbl||tr('sending'));else endProg();
 }
 
+async function generateWithQueue(prompt,model,videoMode){
+  var reqBody={prompt:prompt,model:model,size:selectedSize,n:1,response_format:'url'};
+  var headers={'Content-Type':'application/json'};
+  if(customKey)headers['X-User-Api-Key']=customKey;
+  
+  try{
+    var qRes=await fetch('/v1/queue/add',{method:'POST',headers:headers,body:JSON.stringify(reqBody)});
+    var qData=await qRes.json();
+    var queueId=qData.queue_id;
+    var position=qData.position;
+    
+    showStatus('info','⏳ Queued at position '+(position+1));
+    document.getElementById('queueStatus').style.display='flex';
+    
+    var maxWait=3600;
+    var elapsed=0;
+    while(elapsed<maxWait){
+      await new Promise(function(r){setTimeout(r,3000);});
+      elapsed+=3;
+      
+      var sRes=await fetch('/v1/queue/status/'+queueId,{headers:headers});
+      var sData=await sRes.json();
+      
+      if(sData.status==='completed'){
+        var item=sData.result.data[0];
+        var videoSrc=item.video_url||null;
+        var imageSrc=item.url||(item.b64_json?'data:image/png;base64,'+item.b64_json:null);
+        var mediaSrc=videoSrc||imageSrc;
+        var mediaKind=videoSrc?'video':(imageSrc?inferKind(imageSrc):(videoMode?'video':'image'));
+        if(!mediaSrc)throw new Error(tr('err-no-url'));
+        showPreview(mediaSrc,prompt,mediaKind);
+        saveHist(mediaSrc,prompt,mediaKind,selectedSize);
+        showStatus('success',mediaKind==='video'?tr('ok-gen-video'):tr('ok-gen-image'));
+        document.getElementById('queueStatus').style.display='none';
+        setLoad(false);
+        return;
+      }
+      if(sData.status==='failed'){
+        throw new Error(sData.error||'Queue task failed');
+      }
+      if(sData.status==='processing'){
+        showStatus('info','⚙️ Processing...');
+      }else{
+        showStatus('info','⏳ Position: '+(sData.position+1));
+      }
+    }
+    throw new Error('Queue timeout');
+  }catch(err){
+    document.getElementById('apiDot').className='api-dot err';
+    showStatus('error',err.message||String(err));
+    document.getElementById('queueStatus').style.display='none';
+  }
+  setLoad(false);
+}
+
 async function generate(){
-  var prompt=document.getElementById('prompt').value.trim();
-  var model=document.getElementById('model').value;
-  var videoMode=isVideoModel(model);
-  if(!prompt){showStatus('error',tr('err-prompt'));return;}
-  document.getElementById('statusMsg').className='status';
-  setLoad(true,videoMode?tr('sending-video'):tr('sending'));
+   var prompt=document.getElementById('prompt').value.trim();
+   var model=document.getElementById('model').value;
+   var videoMode=isVideoModel(model);
+   var useQueue=document.getElementById('useQueue').checked;
+   if(!prompt){showStatus('error',tr('err-prompt'));return;}
+   document.getElementById('statusMsg').className='status';
+   setLoad(true,videoMode?tr('sending-video'):tr('sending'));
+   
+   if(useQueue){
+     return generateWithQueue(prompt,model,videoMode);
+   }
   var dbgSec=document.getElementById('sec-debug');
   if(!dbgSec.classList.contains('open'))dbgSec.classList.add('open');
   var reqPath=videoMode?'/v1/videos/generations':'/v1/images/generations';
@@ -835,8 +901,76 @@ export default {
 
     function extractB64(r) { return r.b64_json || r.base64 || (r.result && r.result.b64_json) || null; }
 
+    async function getQueueList() {
+      const queueKey = 'queue:list';
+      const raw = await env.QUEUE_KV.get(queueKey);
+      return raw ? JSON.parse(raw) : [];
+    }
+
+    async function saveQueueList(list) {
+      const queueKey = 'queue:list';
+      await env.QUEUE_KV.put(queueKey, JSON.stringify(list), { expirationTtl: 86400 });
+    }
+
+    async function addToQueue(taskData) {
+      const queueId = crypto.randomUUID();
+      const queue = await getQueueList();
+      queue.push({
+        id: queueId,
+        ...taskData,
+        status: 'pending',
+        position: queue.length,
+        createdAt: Date.now()
+      });
+      await saveQueueList(queue);
+      return { queueId, position: queue.length - 1 };
+    }
+
+    async function getQueueStatus(queueId) {
+      const queue = await getQueueList();
+      const item = queue.find(q => q.id === queueId);
+      if (!item) return null;
+      return { ...item, position: queue.indexOf(item) };
+    }
+
+    async function processNextInQueue() {
+      const queue = await getQueueList();
+      const pending = queue.find(q => q.status === 'pending');
+      if (!pending) return null;
+
+      pending.status = 'processing';
+      await saveQueueList(queue);
+
+      try {
+        const submitResp = await submitTask({
+          prompt: pending.prompt,
+          model: pending.model,
+          n: pending.n,
+          size: pending.size,
+          quality: pending.quality,
+          style: pending.style,
+          response_format: pending.response_format
+        });
+
+        const videoUrl = extractVideo(submitResp);
+        const imgUrl = extractImg(submitResp);
+        const b64 = extractB64(submitResp);
+        const taskId = (submitResp.data && submitResp.data[0] && submitResp.data[0].task_id) ||
+                       submitResp.task_id || submitResp.id || submitResp.job_id;
+
+        pending.status = 'completed';
+        pending.result = { videoUrl, imgUrl, b64, taskId };
+      } catch (e) {
+        pending.status = 'failed';
+        pending.error = e.message;
+      }
+
+      await saveQueueList(queue);
+      return pending;
+    }
+
     try {
-      if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
+       if (request.method === 'GET' && (url.pathname === '/' || url.pathname === '/index.html'))
         return new Response(HTML_UI, { headers: { 'Content-Type': 'text/html;charset=UTF-8', 'Cache-Control': 'no-cache' } });
 
       if (request.method === 'GET' && url.pathname === '/health')
@@ -871,6 +1005,37 @@ export default {
           { id: 'veo-3.1',               object: 'model', owned_by: 'google' },
           { id: 'veo-3.1-preview',       object: 'model', owned_by: 'google' },
         ]});
+
+      if (request.method === 'POST' && url.pathname === '/v1/queue/add') {
+        const body = await request.json();
+        const { prompt, model, size, quality, style, response_format, n } = body;
+        if (!prompt) return json({ error: { message: 'prompt is required' } }, 400);
+        
+        const { queueId, position } = await addToQueue({
+          prompt, model, size, quality, style, response_format, n: n || 1
+        });
+        
+        return json({
+          queue_id: queueId,
+          position: position,
+          status: 'queued',
+          message: `Your request is queued at position ${position + 1}`
+        }, 202);
+      }
+
+      if (request.method === 'GET' && url.pathname.startsWith('/v1/queue/status/')) {
+        const queueId = url.pathname.split('/v1/queue/status/')[1];
+        const item = await getQueueStatus(queueId);
+        if (!item) return json({ error: { message: 'Queue item not found' } }, 404);
+        
+        return json({
+          queue_id: queueId,
+          status: item.status,
+          position: item.position,
+          result: item.result || null,
+          error: item.error || null
+        });
+      }
 
       if (
         request.method === 'POST' && (
@@ -941,4 +1106,51 @@ export default {
       return json({ error: { message: err.message || 'Internal server error' } }, 500);
     }
   },
+  async scheduled(event, env, ctx) {
+    try {
+      const queue = await env.QUEUE_KV.get('queue:list');
+      if (!queue) return;
+      
+      const list = JSON.parse(queue);
+      const pending = list.find(q => q.status === 'pending');
+      
+      if (pending) {
+        pending.status = 'processing';
+        await env.QUEUE_KV.put('queue:list', JSON.stringify(list), { expirationTtl: 86400 });
+        
+        ctx.waitUntil(
+          fetch('https://gjosebfngzowbcrwzxnw.supabase.co/functions/v1/openai-compatible', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + (env.MEDO_API_KEY || 'nb_SBa89oD7xBbHSrwJKny3acDF6kRFuPBNgF2BEEDTdnRGMyBe'),
+              'apikey': env.SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Imdqb3NlYmZuZ3pvd2Jjcnd6eG53Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzIyMzA0MjcsImV4cCI6MjA4NzgwNjQyN30.OlsHb4DZmv22j9FZ1h8pj2tvFnKlS0hsxJJW1NMxR4E'
+            },
+            body: JSON.stringify({
+              prompt: pending.prompt,
+              model: pending.model,
+              n: pending.n,
+              size: pending.size,
+              quality: pending.quality,
+              style: pending.style,
+              response_format: pending.response_format
+            })
+          })
+            .then(r => r.json())
+            .then(data => {
+              pending.status = 'completed';
+              pending.result = data;
+              return env.QUEUE_KV.put('queue:list', JSON.stringify(list), { expirationTtl: 86400 });
+            })
+            .catch(e => {
+              pending.status = 'failed';
+              pending.error = e.message;
+              return env.QUEUE_KV.put('queue:list', JSON.stringify(list), { expirationTtl: 86400 });
+            })
+        );
+      }
+    } catch (err) {
+      console.error('[KIO Queue] ' + (err.stack || err.message));
+    }
+  }
 };

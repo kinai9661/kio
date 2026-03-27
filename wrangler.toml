@@ -3,6 +3,14 @@ main = "worker.js"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
+[[kv_namespaces]]
+binding = "QUEUE_KV"
+id = "kio-queue"
+preview_id = "kio-queue-preview"
+
+[[triggers.crons]]
+cron = "*/5 * * * *"
+
 [vars]
 # 可選：覆蓋 OpenAI Base URL 以使用 Cloudflare AI Gateway
 # OPENAI_BASE_URL = "https://gateway.ai.cloudflare.com/v1/{account_id}/{gateway_id}/openai"
