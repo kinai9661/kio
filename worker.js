@@ -83,7 +83,7 @@ input,select,textarea{
 input:focus,select:focus,textarea:focus{border-color:var(--accent)}
 select option{background:var(--surface2)}
 textarea#prompt{min-height:110px;resize:vertical;line-height:1.6}
-.size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:5px}
+.size-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
 .size-btn{
   background:var(--surface2);border:1px solid var(--border);border-radius:6px;
   color:var(--text2);font-size:.66rem;font-weight:600;padding:6px 2px;
@@ -304,15 +304,9 @@ pre.api-code .bool{color:#22c55e}
       <div class="field">
         <label id="lbl-size">Size</label>
         <div class="size-grid" id="sizeGrid">
-          <button class="size-btn active" data-size="1024x1024">1K&#13217;<span class="ratio">1024&#xD7;1024</span></button>
-          <button class="size-btn" data-size="1024x1792">1K P<span class="ratio">1024&#xD7;1792</span></button>
-          <button class="size-btn" data-size="1792x1024">1K L<span class="ratio">1792&#xD7;1024</span></button>
-          <button class="size-btn" data-size="2048x2048">2K&#13217;<span class="ratio">2048&#xD7;2048</span></button>
-          <button class="size-btn" data-size="2048x3584">2K P<span class="ratio">2048&#xD7;3584</span></button>
-          <button class="size-btn" data-size="3584x2048">2K L<span class="ratio">3584&#xD7;2048</span></button>
-          <button class="size-btn" data-size="4096x4096">4K&#13217;<span class="ratio">4096&#xD7;4096</span></button>
-          <button class="size-btn" data-size="4096x7168">4K P<span class="ratio">4096&#xD7;7168</span></button>
-          <button class="size-btn" data-size="7168x4096">4K L<span class="ratio">7168&#xD7;4096</span></button>
+          <button class="size-btn active" data-size="1024x1024">1K<span class="ratio">1024&#xD7;1024</span></button>
+          <button class="size-btn" data-size="2048x2048">2K<span class="ratio">2048&#xD7;2048</span></button>
+          <button class="size-btn" data-size="4096x4096">4K<span class="ratio">4096&#xD7;4096</span></button>
         </div>
       </div>
     </div>
