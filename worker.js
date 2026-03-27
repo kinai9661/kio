@@ -798,12 +798,17 @@ async function generate(){
     if(mediaKind==='video')showStatus('success',tr('ok-gen-video'));
     else if(mediaSrc.startsWith('data:'))showStatus('info',tr('info-b64-skip'));
     else showStatus('success',tr('ok-gen-image'));
-  }catch(err){
-    document.getElementById('apiDot').className='api-dot err';
-    showStatus('error',err.message||String(err));
-  }
-  setLoad(false);
-}
+   }catch(err){
+     document.getElementById('apiDot').className='api-dot err';
+     if(err.message && (err.message.includes('504') || err.message.includes('UPSTREAM_TIMEOUT') || err.message.includes('timeout'))){
+       showStatus('info','⏳ 直接生成超時，自動改用排隊模式...');
+       setLoad(false);
+       return generateWithQueue(prompt,model,videoMode);
+     }
+     showStatus('error',err.message||String(err));
+   }
+   setLoad(false);
+ }
 genBtn.onclick=generate;
 document.getElementById('prompt').addEventListener('keydown',function(e){
   if(e.key==='Enter'&&e.ctrlKey){e.preventDefault();generate();}
@@ -856,11 +861,24 @@ export default {
     const isVideoModel = (m) => /(^|-)veo/i.test(String(m || '')) || String(m || '').includes('veo');
 
     async function submitTask(body) {
-      const r = await fetch(SUPABASE_URL + '/openai-compatible', {
-        method: 'POST', headers: apiHdr(), body: JSON.stringify(body),
-      });
-      if (!r.ok) throw new Error('openai-compatible ' + r.status + ': ' + await r.text());
-      return r.json();
+      const controller = new AbortController();
+      const timer = setTimeout(() => controller.abort(), 25000);
+      try {
+        const r = await fetch(SUPABASE_URL + '/openai-compatible', {
+          method: 'POST', headers: apiHdr(), body: JSON.stringify(body), signal: controller.signal,
+        });
+        clearTimeout(timer);
+        if (!r.ok) throw new Error('openai-compatible ' + r.status + ': ' + await r.text());
+        return r.json();
+      } catch (e) {
+        clearTimeout(timer);
+        if (e.name === 'AbortError') {
+          const err = new Error('UPSTREAM_TIMEOUT');
+          err.isTimeout = true;
+          throw err;
+        }
+        throw e;
+      }
     }
 
     async function pollUntilDone(taskId, maxWait = 300000, interval = 5000) {
